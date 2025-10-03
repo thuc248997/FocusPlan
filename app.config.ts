@@ -38,9 +38,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     googleAndroidClientId: process.env.GOOGLE_ANDROID_CLIENT_ID ?? '',
     googleIOSClientId: process.env.GOOGLE_IOS_CLIENT_ID ?? '',
     googleExpoClientId: process.env.GOOGLE_EXPO_CLIENT_ID ?? '',
-    googleRedirectUri: process.env.GOOGLE_REDIRECT_URI ?? '',
+    googleRedirectUri: process.env.GOOGLE_REDIRECT_URI ?? 'https://focusplan.around-ai.com/api/auth/callback/google',
     googleApiKey: process.env.GOOGLE_API_KEY ?? '',
     openAIApiKey: process.env.OPENAI_API_KEY ?? '',
-    openAIModel: process.env.OPENAI_MODEL ?? ''
+    openAIModel: process.env.OPENAI_MODEL ?? '',
+    websiteUrl: process.env.WEBSITE_URL ?? 'https://focusplan.around-ai.com'
   }
 });

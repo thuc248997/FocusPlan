@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -15,38 +15,102 @@ import { useTasks } from '../context/TaskProvider';
 import { PrimaryButton } from './buttons';
 
 const INITIAL_DURATION_MINUTES = 60;
+const MIN_DURATION_MINUTES = 15;
+
+const computeInitialTimes = () => {
+  const start = new Date();
+  start.setMinutes(start.getMinutes() + INITIAL_DURATION_MINUTES);
+  start.setSeconds(0, 0);
+  const end = dayjs(start).add(INITIAL_DURATION_MINUTES, 'minute').toDate();
+  return { start, end };
+};
+
+const ensureEndAfterStart = (start: Date, candidate: Date) => {
+  const startMoment = dayjs(start);
+  const candidateMoment = dayjs(candidate);
+  if (candidateMoment.isAfter(startMoment)) {
+    return candidate;
+  }
+  return startMoment.add(MIN_DURATION_MINUTES, 'minute').toDate();
+};
 
 export const TaskForm = () => {
   const { addTask } = useTasks();
+  const initialTimes = useMemo(() => computeInitialTimes(), []);
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
-  const [date, setDate] = useState(() => {
-    const base = new Date();
-    base.setMinutes(base.getMinutes() + INITIAL_DURATION_MINUTES);
-    base.setSeconds(0, 0);
-    return base;
-  });
+  const [startAt, setStartAt] = useState(initialTimes.start);
+  const [endAt, setEndAt] = useState(initialTimes.end);
   const [showPicker, setShowPicker] = useState(false);
-  const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
+  const [activePicker, setActivePicker] = useState<'date' | 'start' | 'end' | null>(null);
+  const isInlinePicker = useMemo(() => Platform.OS === 'ios' || Platform.OS === 'web', []);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const onChange = (_: DateTimePickerEvent, selected?: Date) => {
-    if (Platform.OS !== 'ios') {
-      setShowPicker(false);
-    }
-    if (selected) {
-      setDate(selected);
-    }
+  const applyStartChange = (mode: 'date' | 'time', selected: Date) => {
+    setStartAt((current) => {
+      const next = new Date(current);
+      if (mode === 'date') {
+        next.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
+      } else {
+        next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+      }
+      setEndAt((currentEnd) => {
+        let candidate = new Date(currentEnd);
+        if (mode === 'date') {
+          candidate.setFullYear(next.getFullYear(), next.getMonth(), next.getDate());
+        }
+        return ensureEndAfterStart(next, candidate);
+      });
+      return next;
+    });
   };
 
-  const displayPicker = (mode: 'date' | 'time') => {
-    setPickerMode(mode);
+  const applyEndChange = (selected: Date) => {
+    const currentStart = startAt;
+    setEndAt(() => {
+      const next = new Date(currentStart);
+      next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+      return ensureEndAfterStart(currentStart, next);
+    });
+  };
+
+  const handlePickerChange = (target: 'date' | 'start' | 'end') =>
+    (event: DateTimePickerEvent, selected?: Date) => {
+      if (event.type === 'dismissed') {
+        if (!isInlinePicker) {
+          setShowPicker(false);
+          setActivePicker(null);
+        }
+        return;
+      }
+
+      if (selected) {
+        if (target === 'date') {
+          applyStartChange('date', selected);
+        } else if (target === 'start') {
+          applyStartChange('time', selected);
+        } else {
+          applyEndChange(selected);
+        }
+      }
+
+      if (!isInlinePicker) {
+        setShowPicker(false);
+        setActivePicker(null);
+      }
+    };
+
+  const displayPicker = (target: 'date' | 'start' | 'end') => {
+    setActivePicker(target);
     setShowPicker(true);
   };
 
   const reset = () => {
     setTitle('');
     setNotes('');
+    const { start, end } = computeInitialTimes();
+    setStartAt(start);
+    setEndAt(end);
   };
 
   const submit = async () => {
@@ -55,7 +119,12 @@ export const TaskForm = () => {
     }
     setIsSubmitting(true);
     try {
-      await addTask({ title: title.trim(), notes: notes.trim() || undefined, scheduledTime: date.toISOString() });
+      await addTask({
+        title: title.trim(),
+        notes: notes.trim() || undefined,
+        scheduledTime: startAt.toISOString(),
+        endTime: endAt.toISOString()
+      });
       reset();
     } finally {
       setIsSubmitting(false);
@@ -85,29 +154,73 @@ export const TaskForm = () => {
         selectionColor="#a855f7"
         cursorColor="#a855f7"
       />
-      <View style={styles.row}>
+      <View style={styles.rowWrap}>
         <View style={styles.rowItem}>
           <Text style={styles.label}>Date</Text>
-          <Pressable onPress={() => displayPicker('date')}>
-            <Text style={styles.value}>{dayjs(date).format('MMM D, YYYY')}</Text>
-          </Pressable>
+          {isInlinePicker ? (
+            <DateTimePicker
+              value={startAt}
+              mode="date"
+              onChange={handlePickerChange('date')}
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
+            />
+          ) : (
+            <Pressable
+              style={styles.pickerField}
+              onPress={() => displayPicker('date')}
+            >
+              <Text style={styles.value}>{dayjs(startAt).format('DD/MM/YYYY')}</Text>
+            </Pressable>
+          )}
         </View>
         <View style={styles.rowItem}>
-          <Text style={styles.label}>Time</Text>
-          <Pressable onPress={() => displayPicker('time')}>
-            <Text style={styles.value}>{dayjs(date).format('h:mm A')}</Text>
-          </Pressable>
+          <Text style={styles.label}>Start time</Text>
+          {isInlinePicker ? (
+            <DateTimePicker
+              value={startAt}
+              mode="time"
+              onChange={handlePickerChange('start')}
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              is24Hour
+            />
+          ) : (
+            <Pressable
+              style={styles.pickerField}
+              onPress={() => displayPicker('start')}
+            >
+              <Text style={styles.value}>{dayjs(startAt).format('HH:mm')}</Text>
+            </Pressable>
+          )}
+        </View>
+        <View style={styles.rowItem}>
+          <Text style={styles.label}>End time</Text>
+          {isInlinePicker ? (
+            <DateTimePicker
+              value={endAt}
+              mode="time"
+              onChange={handlePickerChange('end')}
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              is24Hour
+            />
+          ) : (
+            <Pressable
+              style={styles.pickerField}
+              onPress={() => displayPicker('end')}
+            >
+              <Text style={styles.value}>{dayjs(endAt).format('HH:mm')}</Text>
+            </Pressable>
+          )}
         </View>
       </View>
-      {showPicker && (
+      {!isInlinePicker && showPicker && activePicker ? (
         <DateTimePicker
-          value={date}
-          onChange={onChange}
-          mode={pickerMode}
+          value={activePicker === 'end' ? endAt : startAt}
+          onChange={handlePickerChange(activePicker)}
+          mode={activePicker === 'date' ? 'date' : 'time'}
           display={Platform.OS === 'ios' ? 'inline' : 'default'}
-          minimumDate={new Date()}
+          is24Hour={activePicker !== 'date'}
         />
-      )}
+      ) : null}
       <PrimaryButton
         label={isSubmitting ? 'Adding…' : 'Add Task'}
         onPress={submit}
@@ -148,24 +261,35 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top'
   },
-  row: {
+  rowWrap: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
     marginBottom: 4,
     gap: 16
   },
   rowItem: {
-    flex: 1
+    flexGrow: 1,
+    minWidth: 120,
+    gap: 4
   },
   label: {
     fontSize: 14,
     color: 'rgba(226,232,240,0.65)',
     marginBottom: 4
   },
+  pickerField: {
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.35)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(15,23,42,0.6)',
+    justifyContent: 'center'
+  },
   value: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#c4b5fd',
-    paddingVertical: 8
+    color: '#c4b5fd'
   }
 });

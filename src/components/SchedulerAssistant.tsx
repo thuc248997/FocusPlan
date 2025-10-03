@@ -29,10 +29,14 @@ const buildSystemMessage = (tasks: Task[]): AssistantMessage => {
   const snapshot = sorted
     .slice(0, 20)
     .map((task) => {
-      const scheduled = dayjs(task.scheduledTime).format('MMM D, h:mm A');
+      const scheduled = dayjs(task.scheduledTime);
+      const end = task.endTime
+        ? dayjs(task.endTime)
+        : scheduled.add(1, 'hour');
+      const range = `${scheduled.format('MMM D, h:mm A')} – ${end.format('h:mm A')}`;
       const details = [task.title, task.notes?.trim()].filter(Boolean).join(' — ');
       const status = task.status === 'scheduled' ? 'synced' : 'pending';
-      return `- ${scheduled}: ${details || task.title} (${status})`;
+      return `- ${range}: ${details || task.title} (${status})`;
     })
     .join('\n');
 

@@ -4,7 +4,7 @@ FocusPlan is an Expo-managed (React Native) application that lets you capture up
 
 ## Features
 
-- Add lightweight tasks with notes and a scheduled start time
+- Add lightweight tasks with notes and editable start/end times
 - Persist your plan locally so tasks survive reloads
 - Connect your Google account with OAuth 2.0 and the Calendar API scope
 - Create calendar events for individual tasks (automatic when already signed in)
@@ -81,6 +81,7 @@ FocusPlan is an Expo-managed (React Native) application that lets you capture up
 - Tasks are stored in AsyncStorage (`src/storage/taskStorage.ts`), so they are available offline.
 - Google access tokens are persisted with SecureStore (`src/storage/tokenStorage.ts`). Tokens are refreshed on demand by re-running the OAuth flow when they expire.
 - When you add a task while signed in, FocusPlan creates a Google Calendar event immediately. Otherwise you can tap **Sync** later from the task list.
+- Calendar events honor the start and end times you set on each task (defaulting to one hour when the end time is omitted).
 
 ## Verification checklist
 

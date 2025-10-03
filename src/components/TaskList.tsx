@@ -14,12 +14,26 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 import { useTasks } from '../context/TaskProvider';
 
+const MIN_DURATION_MINUTES = 15;
+
+const ensureEndAfterStart = (start: Date, candidate: Date) => {
+  const startMoment = dayjs(start);
+  const candidateMoment = dayjs(candidate);
+  if (candidateMoment.isAfter(startMoment)) {
+    return candidate;
+  }
+  return startMoment.add(MIN_DURATION_MINUTES, 'minute').toDate();
+};
+
 export const TaskList = () => {
   const { tasks, syncingTaskId, syncTask, removeTask, loading, updateTask } = useTasks();
+
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editDate, setEditDate] = useState<Date>(new Date());
+  const [editStart, setEditStart] = useState<Date>(new Date());
+  const [editEnd, setEditEnd] = useState<Date>(dayjs().add(1, 'hour').toDate());
   const [showPicker, setShowPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
+  const [pickerTarget, setPickerTarget] = useState<'date' | 'start' | 'end'>('date');
   const [saving, setSaving] = useState(false);
 
   if (loading) {
@@ -38,30 +52,67 @@ export const TaskList = () => {
     );
   }
 
-  const beginEdit = (taskId: string, scheduledTime: string) => {
+  const beginEdit = (taskId: string, scheduledTime: string, endTime?: string) => {
+    const start = new Date(scheduledTime);
+    const endCandidate = endTime ? new Date(endTime) : dayjs(start).add(1, 'hour').toDate();
+
     setEditingTaskId(taskId);
-    setEditDate(new Date(scheduledTime));
+    setEditStart(start);
+    setEditEnd(ensureEndAfterStart(start, endCandidate));
     setShowPicker(false);
     setPickerMode('date');
+    setPickerTarget('date');
   };
 
   const cancelEdit = () => {
     setEditingTaskId(null);
     setShowPicker(false);
     setPickerMode('date');
+    setPickerTarget('date');
   };
 
-  const openPicker = (mode: 'date' | 'time') => {
-    setPickerMode(mode);
+  const openPicker = (target: 'date' | 'start' | 'end') => {
+    setPickerTarget(target);
+    setPickerMode(target === 'date' ? 'date' : 'time');
     setShowPicker(true);
   };
 
-  const onPickerChange = (_: DateTimePickerEvent, selected?: Date) => {
+  const onPickerChange = (event: DateTimePickerEvent, selected?: Date) => {
+    if (event.type === 'dismissed' || !selected) {
+      if (Platform.OS !== 'ios') {
+        setShowPicker(false);
+      }
+      return;
+    }
+
+    if (pickerTarget === 'date') {
+      setEditStart((current) => {
+        const next = new Date(current);
+        next.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
+        setEditEnd((currentEnd) => {
+          const candidate = new Date(currentEnd);
+          candidate.setFullYear(next.getFullYear(), next.getMonth(), next.getDate());
+          return ensureEndAfterStart(next, candidate);
+        });
+        return next;
+      });
+    } else if (pickerTarget === 'start') {
+      setEditStart((current) => {
+        const next = new Date(current);
+        next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+        setEditEnd((currentEnd) => ensureEndAfterStart(next, currentEnd));
+        return next;
+      });
+    } else {
+      setEditEnd(() => {
+        const next = new Date(editStart);
+        next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+        return ensureEndAfterStart(editStart, next);
+      });
+    }
+
     if (Platform.OS !== 'ios') {
       setShowPicker(false);
-    }
-    if (selected) {
-      setEditDate(selected);
     }
   };
 
@@ -71,7 +122,10 @@ export const TaskList = () => {
     }
     setSaving(true);
     try {
-      await updateTask(editingTaskId, { scheduledTime: editDate.toISOString() });
+      await updateTask(editingTaskId, {
+        scheduledTime: editStart.toISOString(),
+        endTime: editEnd.toISOString()
+      });
       cancelEdit();
     } catch (error) {
       console.warn('Failed to update task', error);
@@ -89,6 +143,7 @@ export const TaskList = () => {
       scrollEnabled={false}
       renderItem={({ item }) => {
         const scheduled = dayjs(item.scheduledTime);
+        const end = item.endTime ? dayjs(item.endTime) : scheduled.add(1, 'hour');
         const syncing = syncingTaskId === item.id;
         const isEditing = editingTaskId === item.id;
         const editDisabled =
@@ -99,7 +154,9 @@ export const TaskList = () => {
             <View style={styles.row}>
               <View style={styles.textBlock}>
                 <Text style={styles.title}>{item.title}</Text>
-                <Text style={styles.subtitle}>{scheduled.format('MMM D, YYYY • h:mm A')}</Text>
+                <Text style={styles.subtitle}>
+                  {`${scheduled.format('MMM D, YYYY • h:mm A')} — ${end.format('h:mm A')}`}
+                </Text>
                 {item.notes ? <Text style={styles.notes}>{item.notes}</Text> : null}
                 <Text
                   style={[
@@ -117,11 +174,11 @@ export const TaskList = () => {
                     styles.buttonTertiary,
                     editDisabled ? styles.buttonDisabledTertiary : null
                   ]}
-                  onPress={() => beginEdit(item.id, item.scheduledTime)}
+                  onPress={() => beginEdit(item.id, item.scheduledTime, item.endTime)}
                   disabled={editDisabled}
                 >
                   <Text style={[styles.buttonText, styles.buttonTertiaryText]}>
-                    {isEditing ? 'Editing…' : 'Edit time'}
+                    {isEditing ? 'Editing…' : 'Edit schedule'}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -151,28 +208,33 @@ export const TaskList = () => {
                   <View style={styles.editField}>
                     <Text style={styles.editLabel}>Date</Text>
                     <Pressable onPress={() => openPicker('date')}>
-                      <Text style={styles.editValue}>{dayjs(editDate).format('MMM D, YYYY')}</Text>
+                      <Text style={styles.editValue}>{dayjs(editStart).format('MMM D, YYYY')}</Text>
                     </Pressable>
                   </View>
                   <View style={styles.editField}>
-                    <Text style={styles.editLabel}>Time</Text>
-                    <Pressable onPress={() => openPicker('time')}>
-                      <Text style={styles.editValue}>{dayjs(editDate).format('h:mm A')}</Text>
+                    <Text style={styles.editLabel}>Start</Text>
+                    <Pressable onPress={() => openPicker('start')}>
+                      <Text style={styles.editValue}>{dayjs(editStart).format('h:mm A')}</Text>
+                    </Pressable>
+                  </View>
+                  <View style={styles.editField}>
+                    <Text style={styles.editLabel}>End</Text>
+                    <Pressable onPress={() => openPicker('end')}>
+                      <Text style={styles.editValue}>{dayjs(editEnd).format('h:mm A')}</Text>
                     </Pressable>
                   </View>
                 </View>
                 {showPicker ? (
                   <DateTimePicker
-                    value={editDate}
+                    value={pickerTarget === 'end' ? editEnd : editStart}
                     mode={pickerMode}
                     onChange={onPickerChange}
                     display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                    minimumDate={new Date()}
                   />
                 ) : null}
                 <Text style={styles.editHint}>
-                  Saving marks this task as pending. Tap Sync afterwards to push the changes to
-                  Google Calendar.
+                  Changes save locally right away. If you were already synced, the calendar event
+                  updates automatically.
                 </Text>
                 <View style={styles.editActions}>
                   <Pressable
@@ -316,10 +378,12 @@ const styles = StyleSheet.create({
   },
   editRow: {
     flexDirection: 'row',
-    gap: 16
+    gap: 16,
+    flexWrap: 'wrap'
   },
   editField: {
-    flex: 1
+    flex: 1,
+    minWidth: 120
   },
   editLabel: {
     fontSize: 13,

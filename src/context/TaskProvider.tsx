@@ -18,6 +18,7 @@ interface AddTaskInput {
   notes?: string;
   scheduledTime: string;
   autoSync?: boolean;
+  endTime?: string;
 }
 
 /* eslint-disable no-unused-vars */
@@ -97,13 +98,14 @@ export const TaskProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   );
 
   const addTask = useCallback(
-    async ({ title, notes, scheduledTime, autoSync = true }: AddTaskInput) => {
+    async ({ title, notes, scheduledTime, endTime, autoSync = true }: AddTaskInput) => {
       const now = new Date().toISOString();
       const newTask: Task = {
         id: nanoid(),
         title,
         notes,
         scheduledTime,
+        endTime,
         status: 'pending',
         createdAt: now,
         updatedAt: now
@@ -142,6 +144,7 @@ export const TaskProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   const updateTask = useCallback(
     async (taskId: string, updates: Partial<Omit<Task, 'id'>>) => {
       const now = new Date().toISOString();
+      let autoSyncTarget: Task | null = null;
       await commitTasks((prev) =>
         prev.map((task) => {
           if (task.id !== taskId) {
@@ -152,18 +155,38 @@ export const TaskProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
             updates.scheduledTime !== undefined && updates.scheduledTime !== task.scheduledTime;
           const titleChanged = updates.title !== undefined && updates.title !== task.title;
           const notesChanged = updates.notes !== undefined && updates.notes !== task.notes;
-          const shouldResetStatus = scheduledTimeChanged || titleChanged || notesChanged;
+          const endTimeChanged = updates.endTime !== undefined && updates.endTime !== task.endTime;
+          const shouldResetStatus =
+            scheduledTimeChanged || titleChanged || notesChanged || endTimeChanged;
 
-          return {
+          const nextTask: Task = {
             ...task,
             ...updates,
             status: shouldResetStatus ? 'pending' : updates.status ?? task.status,
             updatedAt: now
           };
+
+          if (
+            shouldResetStatus &&
+            task.googleEventId &&
+            googleAuth.isAuthenticated
+          ) {
+            autoSyncTarget = nextTask;
+          }
+
+          return nextTask;
         })
       );
+
+      if (autoSyncTarget) {
+        try {
+          await syncTaskInternal(autoSyncTarget);
+        } catch (error) {
+          console.warn('Automatic calendar update after edit failed', error);
+        }
+      }
     },
-    [commitTasks]
+    [commitTasks, googleAuth.isAuthenticated, syncTaskInternal]
   );
 
   const value = useMemo(

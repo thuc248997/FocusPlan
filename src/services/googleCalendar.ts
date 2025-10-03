@@ -16,7 +16,15 @@ const getCalendarEndpoint = (calendarId: string, eventId?: string) =>
 
 const buildEventPayload = (task: Task) => {
   const start = dayjs(task.scheduledTime);
-  const end = start.add(1, 'hour');
+  const end = (() => {
+    if (task.endTime) {
+      const parsed = dayjs(task.endTime);
+      if (parsed.isAfter(start)) {
+        return parsed;
+      }
+    }
+    return start.add(1, 'hour');
+  })();
 
   return {
     summary: task.title,
