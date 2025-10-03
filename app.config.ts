@@ -37,6 +37,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     googleAndroidClientId: process.env.GOOGLE_ANDROID_CLIENT_ID ?? '',
     googleIOSClientId: process.env.GOOGLE_IOS_CLIENT_ID ?? '',
     googleExpoClientId: process.env.GOOGLE_EXPO_CLIENT_ID ?? '',
+    googleRedirectUri: process.env.GOOGLE_REDIRECT_URI ?? '',
     googleApiKey: process.env.GOOGLE_API_KEY ?? ''
   }
 });

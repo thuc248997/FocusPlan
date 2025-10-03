@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
 import Constants from 'expo-constants';
 import {
   clearToken,
@@ -18,6 +19,7 @@ type ExtraConfig = {
   googleAndroidClientId?: string;
   googleIOSClientId?: string;
   googleExpoClientId?: string;
+  googleRedirectUri?: string;
 };
 
 const scopes = [
@@ -29,11 +31,18 @@ const scopes = [
 export const useGoogleAuth = () => {
   const extra = (Constants.expoConfig?.extra ?? Constants.manifest?.extra ?? {}) as ExtraConfig;
 
+  const useProxy = Platform.select({ web: false, default: true }) ?? true;
+  const redirectUri = useMemo(
+    () => extra.googleRedirectUri || makeRedirectUri({ useProxy }),
+    [extra.googleRedirectUri, useProxy]
+  );
+
   const [request, response, promptAsync] = Google.useAuthRequest({
     expoClientId: extra.googleExpoClientId,
     webClientId: extra.googleWebClientId,
     iosClientId: extra.googleIOSClientId,
     androidClientId: extra.googleAndroidClientId,
+    redirectUri,
     scopes,
     selectAccount: true
   });
@@ -78,7 +87,7 @@ export const useGoogleAuth = () => {
     }
     const result = await promptAsync({
       showInRecents: true,
-      useProxy: Platform.select({ web: false, default: true })
+      useProxy
     });
     if (result?.type !== 'success') {
       throw new Error('Google sign-in was cancelled.');

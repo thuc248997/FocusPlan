@@ -45,8 +45,9 @@ FocusPlan is an Expo-managed (React Native) application that lets you capture up
    GOOGLE_ANDROID_CLIENT_ID=your_android_oauth_client_id
    GOOGLE_IOS_CLIENT_ID=your_ios_oauth_client_id
    GOOGLE_EXPO_CLIENT_ID=your_expo_client_id    # optional but convenient during development
+   GOOGLE_REDIRECT_URI=https://your-site.com     # optional override if Google needs an explicit redirect
    GOOGLE_API_KEY=your_google_api_key           # optional for future enhancements
-   ```
+  ```
 3. Launch the app with Expo:
    ```bash
    npm run start
@@ -60,6 +61,7 @@ FocusPlan is an Expo-managed (React Native) application that lets you capture up
 3. Configure an OAuth consent screen (External or Internal) and publish it in testing mode or production depending on your needs.
 4. Create OAuth 2.0 client IDs:
    - **Web client**: required for Expo web. Add the Expo Auth Session redirect URI `https://auth.expo.io/@your-expo-username/focusplan` (replace with your actual username/slug) under *Authorized redirect URIs*.
+     - If you deploy the web app (e.g., Vercel), also add that origin as a redirect (for example `https://focusplan.vercel.app/`). Use the same value in `GOOGLE_REDIRECT_URI` so the client and app stay in sync.
    - **Android client**: use your app package `com.focusplan.app`. Download the SHA-1 from the Expo credentials page or generate one in your native build pipeline.
    - **iOS client**: use the bundle identifier `com.focusplan.app`.
    - **Expo client (optional but useful)**: create a second web client specifically for development with Expo Go and use the redirect `https://auth.expo.io/@your-expo-username/focusplan`.
