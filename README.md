@@ -47,6 +47,8 @@ FocusPlan is an Expo-managed (React Native) application that lets you capture up
    GOOGLE_EXPO_CLIENT_ID=your_expo_client_id    # optional but convenient during development
    GOOGLE_REDIRECT_URI=https://your-site.com     # optional override if Google needs an explicit redirect
    GOOGLE_API_KEY=your_google_api_key           # optional for future enhancements
+   OPENAI_API_KEY=your_openai_api_key           # required for the GPT scheduling assistant
+   OPENAI_MODEL=gpt-4o-mini                     # optional override for the assistant model
   ```
 3. Launch the app with Expo:
    ```bash
@@ -67,6 +69,12 @@ FocusPlan is an Expo-managed (React Native) application that lets you capture up
    - **Expo client (optional but useful)**: create a second web client specifically for development with Expo Go and use the redirect `https://auth.expo.io/@your-expo-username/focusplan`.
 5. Paste the resulting client IDs into the `.env` file as shown earlier. Expo will inject them into `Constants.expoConfig.extra` at runtime.
 6. When prompted on device, authenticate with your Google account, approve the `https://www.googleapis.com/auth/calendar.events` scope, and FocusPlan will take care of creating calendar events for your tasks.
+
+## Smart scheduling assistant
+
+- Set `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`) in your environment before starting the app. The key is read on the device, so prefer a throwaway/development key when sharing builds.
+- Launch the "Smart scheduling assistant" card beneath the task form to chat with GPT about your current plan. The assistant sees a summary of your existing tasks and can suggest new focus blocks or reschedule items.
+- After adjusting the plan based on the assistant’s advice, edit task times inline and tap **Sync** to push the updated schedule to Google Calendar.
 
 ## How syncing works
 

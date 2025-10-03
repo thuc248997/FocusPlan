@@ -9,6 +9,7 @@ import { TaskList } from './src/components/TaskList';
 import { GoogleAuthCard } from './src/components/GoogleAuthCard';
 import { GoogleAuthProvider } from './src/context/GoogleAuthProvider';
 import { Hero } from './src/components/Hero';
+import { SchedulerAssistant } from './src/components/SchedulerAssistant';
 
 export default function App() {
   const { width } = useWindowDimensions();
@@ -35,6 +36,7 @@ export default function App() {
                     <View style={layoutStyles.columnWide}>
                       <GoogleAuthCard />
                       <TaskForm />
+                      <SchedulerAssistant />
                     </View>
                     <View style={layoutStyles.columnNarrow}>
                       <Text style={styles.sectionTitle}>Your focused sessions</Text>

@@ -92,7 +92,7 @@ export const useGoogleAuth = () => {
     if (result?.type !== 'success') {
       throw new Error('Google sign-in was cancelled.');
     }
-  }, [promptAsync, request]);
+  }, [promptAsync, request, useProxy]);
 
   const waitForFreshToken = useCallback(async () => {
     const ATTEMPTS = 5;

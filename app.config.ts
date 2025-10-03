@@ -1,3 +1,4 @@
+/* eslint-env node */
 import 'dotenv/config';
 import type { ExpoConfig } from '@expo/config';
 
@@ -38,6 +39,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     googleIOSClientId: process.env.GOOGLE_IOS_CLIENT_ID ?? '',
     googleExpoClientId: process.env.GOOGLE_EXPO_CLIENT_ID ?? '',
     googleRedirectUri: process.env.GOOGLE_REDIRECT_URI ?? '',
-    googleApiKey: process.env.GOOGLE_API_KEY ?? ''
+    googleApiKey: process.env.GOOGLE_API_KEY ?? '',
+    openAIApiKey: process.env.OPENAI_API_KEY ?? '',
+    openAIModel: process.env.OPENAI_MODEL ?? ''
   }
 });

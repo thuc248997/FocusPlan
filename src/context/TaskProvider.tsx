@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import { Alert } from 'react-native';
 import { nanoid } from 'nanoid/non-secure';
-import { createCalendarEvent } from '../services/googleCalendar';
+import { upsertCalendarEvent } from '../services/googleCalendar';
 import { loadTasks, persistTasks } from '../storage/taskStorage';
 import type { Task } from '../types/task';
 import { useGoogleAuthContext } from './GoogleAuthProvider';
@@ -20,14 +20,19 @@ interface AddTaskInput {
   autoSync?: boolean;
 }
 
+/* eslint-disable no-unused-vars */
 interface TaskContextValue {
   tasks: Task[];
   loading: boolean;
   syncingTaskId: string | null;
-  addTask: (input: AddTaskInput) => Promise<void>;
-  syncTask: (taskId: string) => Promise<void>;
-  removeTask: (taskId: string) => Promise<void>;
+  addTask(_input: AddTaskInput): Promise<void>;
+  syncTask(_taskId: string): Promise<void>;
+  removeTask(_taskId: string): Promise<void>;
+  updateTask(_taskId: string, _updates: Partial<Omit<Task, 'id'>>): Promise<void>;
 }
+
+type TaskStateUpdater = (tasks: Task[]) => Task[];
+/* eslint-enable no-unused-vars */
 
 const TaskContext = createContext<TaskContextValue | undefined>(undefined);
 
@@ -49,7 +54,7 @@ export const TaskProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     });
   }, []);
 
-  const commitTasks = useCallback(async (updater: (prev: Task[]) => Task[]) => {
+  const commitTasks = useCallback(async (updater: TaskStateUpdater) => {
     let nextSnapshot: Task[] = [];
     setTasks((prev) => {
       nextSnapshot = updater(prev);
@@ -67,7 +72,7 @@ export const TaskProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       try {
         setSyncingTaskId(task.id);
         const token = await googleAuth.ensureAuthenticated();
-        const eventId = await createCalendarEvent(token, { task });
+        const eventId = await upsertCalendarEvent(token, { task });
         await commitTasks((prev) =>
           prev.map((existing) =>
             existing.id === task.id
@@ -134,9 +139,36 @@ export const TaskProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     [commitTasks]
   );
 
+  const updateTask = useCallback(
+    async (taskId: string, updates: Partial<Omit<Task, 'id'>>) => {
+      const now = new Date().toISOString();
+      await commitTasks((prev) =>
+        prev.map((task) => {
+          if (task.id !== taskId) {
+            return task;
+          }
+
+          const scheduledTimeChanged =
+            updates.scheduledTime !== undefined && updates.scheduledTime !== task.scheduledTime;
+          const titleChanged = updates.title !== undefined && updates.title !== task.title;
+          const notesChanged = updates.notes !== undefined && updates.notes !== task.notes;
+          const shouldResetStatus = scheduledTimeChanged || titleChanged || notesChanged;
+
+          return {
+            ...task,
+            ...updates,
+            status: shouldResetStatus ? 'pending' : updates.status ?? task.status,
+            updatedAt: now
+          };
+        })
+      );
+    },
+    [commitTasks]
+  );
+
   const value = useMemo(
-    () => ({ tasks, loading, syncingTaskId, addTask, syncTask, removeTask }),
-    [addTask, loading, removeTask, syncTask, syncingTaskId, tasks]
+    () => ({ tasks, loading, syncingTaskId, addTask, syncTask, removeTask, updateTask }),
+    [addTask, loading, removeTask, syncTask, syncingTaskId, tasks, updateTask]
   );
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;

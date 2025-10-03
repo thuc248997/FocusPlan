@@ -1,9 +1,26 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View
+} from 'react-native';
 import dayjs from 'dayjs';
+import DateTimePicker, {
+  DateTimePickerEvent
+} from '@react-native-community/datetimepicker';
 import { useTasks } from '../context/TaskProvider';
 
 export const TaskList = () => {
-  const { tasks, syncingTaskId, syncTask, removeTask, loading } = useTasks();
+  const { tasks, syncingTaskId, syncTask, removeTask, loading, updateTask } = useTasks();
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState<Date>(new Date());
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
+  const [saving, setSaving] = useState(false);
 
   if (loading) {
     return (
@@ -21,6 +38,49 @@ export const TaskList = () => {
     );
   }
 
+  const beginEdit = (taskId: string, scheduledTime: string) => {
+    setEditingTaskId(taskId);
+    setEditDate(new Date(scheduledTime));
+    setShowPicker(false);
+    setPickerMode('date');
+  };
+
+  const cancelEdit = () => {
+    setEditingTaskId(null);
+    setShowPicker(false);
+    setPickerMode('date');
+  };
+
+  const openPicker = (mode: 'date' | 'time') => {
+    setPickerMode(mode);
+    setShowPicker(true);
+  };
+
+  const onPickerChange = (_: DateTimePickerEvent, selected?: Date) => {
+    if (Platform.OS !== 'ios') {
+      setShowPicker(false);
+    }
+    if (selected) {
+      setEditDate(selected);
+    }
+  };
+
+  const saveEdit = async () => {
+    if (!editingTaskId) {
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateTask(editingTaskId, { scheduledTime: editDate.toISOString() });
+      cancelEdit();
+    } catch (error) {
+      console.warn('Failed to update task', error);
+      Alert.alert('Update failed', 'Unable to update the scheduled time. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <FlatList
       data={tasks}
@@ -30,6 +90,10 @@ export const TaskList = () => {
       renderItem={({ item }) => {
         const scheduled = dayjs(item.scheduledTime);
         const syncing = syncingTaskId === item.id;
+        const isEditing = editingTaskId === item.id;
+        const editDisabled =
+          isEditing || saving || (editingTaskId && editingTaskId !== item.id);
+
         return (
           <View style={styles.card}>
             <View style={styles.row}>
@@ -47,6 +111,19 @@ export const TaskList = () => {
                 </Text>
               </View>
               <View style={styles.actions}>
+                <Pressable
+                  style={[
+                    styles.button,
+                    styles.buttonTertiary,
+                    editDisabled ? styles.buttonDisabledTertiary : null
+                  ]}
+                  onPress={() => beginEdit(item.id, item.scheduledTime)}
+                  disabled={editDisabled}
+                >
+                  <Text style={[styles.buttonText, styles.buttonTertiaryText]}>
+                    {isEditing ? 'Editing…' : 'Edit time'}
+                  </Text>
+                </Pressable>
                 <Pressable
                   style={[styles.button, syncing ? styles.buttonDisabled : styles.buttonPrimary]}
                   onPress={() => {
@@ -68,6 +145,55 @@ export const TaskList = () => {
                 </Pressable>
               </View>
             </View>
+            {isEditing ? (
+              <View style={styles.editPanel}>
+                <View style={styles.editRow}>
+                  <View style={styles.editField}>
+                    <Text style={styles.editLabel}>Date</Text>
+                    <Pressable onPress={() => openPicker('date')}>
+                      <Text style={styles.editValue}>{dayjs(editDate).format('MMM D, YYYY')}</Text>
+                    </Pressable>
+                  </View>
+                  <View style={styles.editField}>
+                    <Text style={styles.editLabel}>Time</Text>
+                    <Pressable onPress={() => openPicker('time')}>
+                      <Text style={styles.editValue}>{dayjs(editDate).format('h:mm A')}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+                {showPicker ? (
+                  <DateTimePicker
+                    value={editDate}
+                    mode={pickerMode}
+                    onChange={onPickerChange}
+                    display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                    minimumDate={new Date()}
+                  />
+                ) : null}
+                <Text style={styles.editHint}>
+                  Saving marks this task as pending. Tap Sync afterwards to push the changes to
+                  Google Calendar.
+                </Text>
+                <View style={styles.editActions}>
+                  <Pressable
+                    style={[styles.button, styles.buttonGhost]}
+                    onPress={cancelEdit}
+                    disabled={saving}
+                  >
+                    <Text style={[styles.buttonText, styles.buttonGhostText]}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.button, styles.buttonPrimary, saving ? styles.buttonDisabled : null]}
+                    onPress={saveEdit}
+                    disabled={saving}
+                  >
+                    <Text style={[styles.buttonText, styles.buttonPrimaryText]}>
+                      {saving ? 'Saving…' : 'Save changes'}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
           </View>
         );
       }}
@@ -153,6 +279,17 @@ const styles = StyleSheet.create({
   buttonPrimaryText: {
     color: '#f8fafc'
   },
+  buttonTertiary: {
+    borderWidth: 1,
+    borderColor: 'rgba(99,102,241,0.45)',
+    backgroundColor: 'rgba(99,102,241,0.15)'
+  },
+  buttonTertiaryText: {
+    color: '#c7d2fe'
+  },
+  buttonDisabledTertiary: {
+    opacity: 0.5
+  },
   buttonSecondary: {
     borderWidth: 1,
     borderColor: 'rgba(248,113,113,0.5)'
@@ -160,7 +297,47 @@ const styles = StyleSheet.create({
   buttonSecondaryText: {
     color: '#fca5a5'
   },
+  buttonGhost: {
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.35)'
+  },
+  buttonGhostText: {
+    color: '#e2e8f0'
+  },
   buttonText: {
     fontWeight: '600'
+  },
+  editPanel: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(148,163,184,0.2)',
+    gap: 12
+  },
+  editRow: {
+    flexDirection: 'row',
+    gap: 16
+  },
+  editField: {
+    flex: 1
+  },
+  editLabel: {
+    fontSize: 13,
+    color: 'rgba(226,232,240,0.65)',
+    marginBottom: 4
+  },
+  editValue: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#c4b5fd'
+  },
+  editHint: {
+    fontSize: 12,
+    color: 'rgba(226,232,240,0.6)'
+  },
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12
   }
 });
