@@ -20,6 +20,10 @@ type ExtraConfig = {
   googleIOSClientId?: string;
   googleExpoClientId?: string;
   googleRedirectUri?: string;
+  googleRedirectUris?: Record<string, string | undefined> & {
+    local?: string;
+    production?: string;
+  };
 };
 
 const scopes = [
@@ -32,10 +36,23 @@ export const useGoogleAuth = () => {
   const extra = (Constants.expoConfig?.extra ?? Constants.manifest?.extra ?? {}) as ExtraConfig;
 
   const useProxy = Platform.select({ web: false, default: true }) ?? true;
-  const redirectUri = useMemo(
-    () => extra.googleRedirectUri || makeRedirectUri({ useProxy }),
-    [extra.googleRedirectUri, useProxy]
-  );
+  const redirectUri = useMemo(() => {
+    const prefer = (...values: (string | undefined)[]) =>
+      values
+        .map((value) => value?.trim())
+        .find((value): value is string => Boolean(value));
+    const redirectCandidates = Object.values(extra.googleRedirectUris ?? {}) as (
+      | string
+      | undefined
+    )[];
+    const candidate = prefer(
+      extra.googleRedirectUri,
+      extra.googleRedirectUris?.production,
+      extra.googleRedirectUris?.local,
+      ...redirectCandidates
+    );
+    return candidate ?? makeRedirectUri({ useProxy });
+  }, [extra.googleRedirectUri, extra.googleRedirectUris, useProxy]);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     expoClientId: extra.googleExpoClientId,

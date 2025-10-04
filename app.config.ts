@@ -39,11 +39,31 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     googleIOSClientId: process.env.GOOGLE_IOS_CLIENT_ID ?? '',
     googleExpoClientId: process.env.GOOGLE_EXPO_CLIENT_ID ?? '',
     // googleRedirectUri: process.env.GOOGLE_REDIRECT_URI ?? 'https://focusplan.around-ai.com/api/auth/callback/google',
-    googleRedirectUri: process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:8081/api/auth/callback/google',
+    googleRedirectUri:
+      process.env.GOOGLE_REDIRECT_URI ??
+      process.env.GOOGLE_REDIRECT_URI_PROD ??
+      process.env.GOOGLE_REDIRECT_URI_LOCAL ??
+      'http://localhost:8081/api/auth/callback/google',
+    googleRedirectUris: {
+      local:
+        process.env.GOOGLE_REDIRECT_URI_LOCAL ??
+        'http://localhost:8081/api/auth/callback/google',
+      production:
+        process.env.GOOGLE_REDIRECT_URI_PROD ??
+        'https://focusplan.around-ai.com/api/auth/callback/google'
+    },
     googleApiKey: process.env.GOOGLE_API_KEY ?? '',
     openAIApiKey: process.env.OPENAI_API_KEY ?? '',
     openAIModel: process.env.OPENAI_MODEL ?? '',
     // websiteUrl: process.env.WEBSITE_URL ?? 'https://focusplan.around-ai.com'
-    websiteUrl: process.env.WEBSITE_URL ?? 'http://localhost:8081'
+    websiteUrl:
+      process.env.WEBSITE_URL ??
+      process.env.WEBSITE_URL_PROD ??
+      process.env.WEBSITE_URL_LOCAL ??
+      'http://localhost:8081',
+    websiteUrls: {
+      local: process.env.WEBSITE_URL_LOCAL ?? 'http://localhost:8081',
+      production: process.env.WEBSITE_URL_PROD ?? 'https://focusplan.around-ai.com'
+    }
   }
 });

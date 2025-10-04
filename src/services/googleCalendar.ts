@@ -4,6 +4,10 @@ import type { TokenBundle } from '../storage/tokenStorage';
 
 type ExtraConfig = {
   websiteUrl?: string;
+  websiteUrls?: Record<string, string | undefined> & {
+    local?: string;
+    production?: string;
+  };
 };
 
 interface CalendarEventInput {
@@ -13,7 +17,15 @@ interface CalendarEventInput {
 
 const resolveApiBase = () => {
   const extra = (Constants.expoConfig?.extra ?? Constants.manifest?.extra ?? {}) as ExtraConfig;
-  const rawBase = extra.websiteUrl || 'http://localhost:3000';
+  const prefer = (...values: (string | undefined)[]) =>
+    values
+      .map((value) => value?.trim())
+      .find((value): value is string => Boolean(value));
+  const candidate =
+    prefer(extra.websiteUrl, extra.websiteUrls?.production, extra.websiteUrls?.local) ??
+    prefer(...Object.values(extra.websiteUrls ?? {})) ??
+    'http://localhost:8081';
+  const rawBase = candidate;
   return rawBase.endsWith('/') ? rawBase.slice(0, -1) : rawBase;
 };
 
