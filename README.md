@@ -1,6 +1,44 @@
 # FocusPlan
 
-FocusPlan is an Expo-managed (React Native) application that lets you capture upcoming tasks, choose the exact time you plan to work on them, and keep Google Calendar in sync with a single tap. The project ships with persistent local storage, Google OAuth, and Calendar API helpers so you can get productive quickly on Android, iOS, and the web.
+FocusPlan is an Expo-managed (React Native) application that lets you capture ## Verification checklist
+
+- `npm run lint` checks source quality using ESLint and TypeScript.
+- `npm run start` boots Expo's bundler. Watch the terminal for runtime errors.
+- To reset emulator/device state during testing, clear AsyncStorage via device settings or reinstall the Expo Go app.
+
+## Troubleshooting
+
+### "Unable to obtain Google credentials" Error
+
+This is the most common issue. Follow these steps:
+
+1. **Verify Google Cloud Console Setup:**
+   - Ensure Google Calendar API is enabled
+   - Check OAuth consent screen includes `calendar.events` scope
+   - Verify redirect URIs match your app configuration
+
+2. **Check Environment Variables:**
+   - Ensure `.env` file has `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
+   - Restart the Expo dev server after changing `.env`
+
+3. **Clear Authentication State:**
+   - Sign out from the app
+   - Clear app storage/cache
+   - Restart the app and sign in again
+
+4. **Enable Debug Mode:**
+   - Import and add `<GoogleAuthDebug />` component to your App.tsx (only shows in dev mode)
+   - Check console logs for detailed authentication flow
+
+5. **Detailed Guide:**
+   - See [GOOGLE_CALENDAR_SETUP.md](./GOOGLE_CALENDAR_SETUP.md) for comprehensive troubleshooting
+
+### Common Issues
+
+- **401 Unauthorized:** Token expired - sign out and back in
+- **403 Forbidden:** Calendar API not enabled or scope not granted
+- **Network errors:** Check API endpoint URL in `app.config.ts`
+- **CORS errors (web only):** Verify allowed origins in `api/sync-task.ts`ing tasks, choose the exact time you plan to work on them, and keep Google Calendar in sync with a single tap. The project ships with persistent local storage, Google OAuth, and Calendar API helpers so you can get productive quickly on Android, iOS, and the web.
 
 ## Features
 
@@ -58,16 +96,22 @@ FocusPlan is an Expo-managed (React Native) application that lets you capture up
 
 ## Configuring Google OAuth and Calendar API
 
+**⚠️ Important:** If you're experiencing "Unable to obtain Google credentials" errors, see [GOOGLE_CALENDAR_SETUP.md](./GOOGLE_CALENDAR_SETUP.md) for detailed troubleshooting steps.
+
 1. Visit the [Google Cloud Console](https://console.cloud.google.com/) and create (or select) a project.
 2. Enable the **Google Calendar API** under *APIs & Services → Library*.
 3. Configure an OAuth consent screen (External or Internal) and publish it in testing mode or production depending on your needs.
+   - **Important:** Add the scope `https://www.googleapis.com/auth/calendar.events` to your OAuth consent screen
 4. Create OAuth 2.0 client IDs:
    - **Web client**: required for Expo web. Add the Expo Auth Session redirect URI `https://auth.expo.io/@your-expo-username/focusplan` (replace with your actual username/slug) under *Authorized redirect URIs*.
      - If you deploy the web app (e.g., Vercel), also add that origin as a redirect (for example `https://focusplan.vercel.app/`). Use the same value in `GOOGLE_REDIRECT_URI` so the client and app stay in sync.
    - **Android client**: use your app package `com.focusplan.app`. Download the SHA-1 from the Expo credentials page or generate one in your native build pipeline.
    - **iOS client**: use the bundle identifier `com.focusplan.app`.
    - **Expo client (optional but useful)**: create a second web client specifically for development with Expo Go and use the redirect `https://auth.expo.io/@your-expo-username/focusplan`.
-5. Paste the resulting client IDs into the `.env` file as shown earlier. Expo will inject them into `Constants.expoConfig.extra` at runtime.
+5. Paste the resulting client IDs into the `.env` file as shown earlier. Make sure to use the `EXPO_PUBLIC_` prefix for client-side variables:
+   ```bash
+   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your_web_oauth_client_id
+   ```
 6. When prompted on device, authenticate with your Google account, approve the `https://www.googleapis.com/auth/calendar.events` scope, and FocusPlan will take care of creating calendar events for your tasks.
 
 ## Smart scheduling assistant

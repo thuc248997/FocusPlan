@@ -79,6 +79,13 @@ const upsertCalendarEvent = async (
     ? `${baseEndpoint}/${encodeURIComponent(task.googleEventId as string)}`
     : baseEndpoint;
 
+  console.log('Google Calendar API request:', {
+    method: hasExistingEvent ? 'PATCH' : 'POST',
+    endpoint,
+    taskId: task.id,
+    hasExistingEvent
+  });
+
   const response = await fetch(endpoint, {
     method: hasExistingEvent ? 'PATCH' : 'POST',
     headers: {
@@ -90,12 +97,26 @@ const upsertCalendarEvent = async (
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(
-      `Google Calendar API request failed (status ${response.status}): ${message}`
-    );
+    console.error('Google Calendar API error:', {
+      status: response.status,
+      statusText: response.statusText,
+      message
+    });
+    
+    // Provide more specific error messages
+    if (response.status === 401) {
+      throw new Error('Google authentication failed. Token may be expired. Please sign in again.');
+    } else if (response.status === 403) {
+      throw new Error('Permission denied. Please ensure calendar access is granted.');
+    } else {
+      throw new Error(
+        `Google Calendar API request failed (status ${response.status}): ${message}`
+      );
+    }
   }
 
   const json = (await response.json()) as { id: string };
+  console.log('Calendar event created/updated successfully:', json.id);
   return json.id;
 };
 
@@ -114,15 +135,19 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
+    console.error('Missing or invalid Authorization header');
     res.status(401).json({ error: 'Missing or invalid Authorization header' });
     return;
   }
 
   const accessToken = authHeader.slice('Bearer '.length).trim();
   if (!accessToken) {
+    console.error('Access token is empty');
     res.status(401).json({ error: 'Access token is required' });
     return;
   }
+
+  console.log('Received sync request with token (length):', accessToken.length);
 
   const rawBody = req.body;
   let body: SyncRequestBody;

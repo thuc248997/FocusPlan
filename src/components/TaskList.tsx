@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -6,15 +6,19 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View
 } from 'react-native';
 import dayjs from 'dayjs';
 import DateTimePicker, {
   DateTimePickerEvent
 } from '@react-native-community/datetimepicker';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { useTasks } from '../context/TaskProvider';
 
 const MIN_DURATION_MINUTES = 15;
+
+dayjs.extend(customParseFormat);
 
 const ensureEndAfterStart = (start: Date, candidate: Date) => {
   const startMoment = dayjs(start);
@@ -35,22 +39,10 @@ export const TaskList = () => {
   const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
   const [pickerTarget, setPickerTarget] = useState<'date' | 'start' | 'end'>('date');
   const [saving, setSaving] = useState(false);
-
-  if (loading) {
-    return (
-      <View style={styles.placeholder}>
-        <Text style={styles.placeholderText}>Loading tasks…</Text>
-      </View>
-    );
-  }
-
-  if (!tasks.length) {
-    return (
-      <View style={styles.placeholder}>
-        <Text style={styles.placeholderText}>No tasks yet. Add your first task above.</Text>
-      </View>
-    );
-  }
+  const isWeb = Platform.OS === 'web';
+  const [webEditDate, setWebEditDate] = useState('');
+  const [webEditStartInput, setWebEditStartInput] = useState('');
+  const [webEditEndInput, setWebEditEndInput] = useState('');
 
   const beginEdit = (taskId: string, scheduledTime: string, endTime?: string) => {
     const start = new Date(scheduledTime);
@@ -62,6 +54,11 @@ export const TaskList = () => {
     setShowPicker(false);
     setPickerMode('date');
     setPickerTarget('date');
+    if (isWeb) {
+      setWebEditDate(dayjs(start).format('YYYY-MM-DD'));
+      setWebEditStartInput(dayjs(start).format('HH:mm'));
+      setWebEditEndInput(dayjs(endCandidate).format('HH:mm'));
+    }
   };
 
   const cancelEdit = () => {
@@ -72,6 +69,9 @@ export const TaskList = () => {
   };
 
   const openPicker = (target: 'date' | 'start' | 'end') => {
+    if (isWeb) {
+      return;
+    }
     setPickerTarget(target);
     setPickerMode(target === 'date' ? 'date' : 'time');
     setShowPicker(true);
@@ -115,6 +115,82 @@ export const TaskList = () => {
       setShowPicker(false);
     }
   };
+
+  useEffect(() => {
+    if (!isWeb || !editingTaskId) {
+      return;
+    }
+    setWebEditDate(dayjs(editStart).format('YYYY-MM-DD'));
+    setWebEditStartInput(dayjs(editStart).format('HH:mm'));
+  }, [editStart, editingTaskId, isWeb]);
+
+  useEffect(() => {
+    if (!isWeb || !editingTaskId) {
+      return;
+    }
+    setWebEditEndInput(dayjs(editEnd).format('HH:mm'));
+  }, [editEnd, editingTaskId, isWeb]);
+
+  const handleWebEditBlur = (target: 'date' | 'start' | 'end') => {
+    if (!isWeb || typeof window === 'undefined') {
+      return;
+    }
+    const value = target === 'date' ? webEditDate : target === 'start' ? webEditStartInput : webEditEndInput;
+    const format = target === 'date' ? 'YYYY-MM-DD' : 'HH:mm';
+    const parsed = dayjs(value, format, true);
+    if (!parsed.isValid()) {
+      window.alert(
+        target === 'date'
+          ? 'Ngày không hợp lệ. Vui lòng dùng định dạng YYYY-MM-DD.'
+          : 'Giờ không hợp lệ. Vui lòng dùng định dạng HH:mm.'
+      );
+      setWebEditDate(dayjs(editStart).format('YYYY-MM-DD'));
+      setWebEditStartInput(dayjs(editStart).format('HH:mm'));
+      setWebEditEndInput(dayjs(editEnd).format('HH:mm'));
+      return;
+    }
+    if (target === 'date') {
+      setEditStart((current) => {
+        const updated = new Date(current);
+        updated.setFullYear(parsed.year(), parsed.month(), parsed.date());
+        setEditEnd((currentEnd) => {
+          const candidate = new Date(currentEnd);
+          candidate.setFullYear(parsed.year(), parsed.month(), parsed.date());
+          return ensureEndAfterStart(updated, candidate);
+        });
+        return updated;
+      });
+    } else if (target === 'start') {
+      setEditStart((current) => {
+        const updated = new Date(current);
+        updated.setHours(parsed.hour(), parsed.minute(), 0, 0);
+        setEditEnd((currentEnd) => ensureEndAfterStart(updated, currentEnd));
+        return updated;
+      });
+    } else {
+      setEditEnd(() => {
+        const updated = new Date(editStart);
+        updated.setHours(parsed.hour(), parsed.minute(), 0, 0);
+        return ensureEndAfterStart(editStart, updated);
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.placeholder}>
+        <Text style={styles.placeholderText}>Loading tasks…</Text>
+      </View>
+    );
+  }
+
+  if (!tasks.length) {
+    return (
+      <View style={styles.placeholder}>
+        <Text style={styles.placeholderText}>No tasks yet. Add your first task above.</Text>
+      </View>
+    );
+  }
 
   const saveEdit = async () => {
     if (!editingTaskId) {
@@ -205,31 +281,70 @@ export const TaskList = () => {
             {isEditing ? (
               <View style={styles.editPanel}>
                 <View style={styles.editRow}>
-                  <View style={styles.editField}>
-                    <Text style={styles.editLabel}>Date</Text>
+                <View style={styles.editField}>
+                  <Text style={styles.editLabel}>Date</Text>
+                  {isWeb ? (
+                    <TextInput
+                      style={styles.editValueInput}
+                      value={webEditDate}
+                      onChangeText={setWebEditDate}
+                      onBlur={() => handleWebEditBlur('date')}
+                      placeholder="YYYY-MM-DD"
+                      inputMode="text"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  ) : (
                     <Pressable onPress={() => openPicker('date')}>
                       <Text style={styles.editValue}>{dayjs(editStart).format('MMM D, YYYY')}</Text>
                     </Pressable>
-                  </View>
-                  <View style={styles.editField}>
-                    <Text style={styles.editLabel}>Start</Text>
+                  )}
+                </View>
+                <View style={styles.editField}>
+                  <Text style={styles.editLabel}>Start</Text>
+                  {isWeb ? (
+                    <TextInput
+                      style={styles.editValueInput}
+                      value={webEditStartInput}
+                      onChangeText={setWebEditStartInput}
+                      onBlur={() => handleWebEditBlur('start')}
+                      placeholder="HH:mm"
+                      inputMode="text"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  ) : (
                     <Pressable onPress={() => openPicker('start')}>
                       <Text style={styles.editValue}>{dayjs(editStart).format('h:mm A')}</Text>
                     </Pressable>
-                  </View>
-                  <View style={styles.editField}>
-                    <Text style={styles.editLabel}>End</Text>
+                  )}
+                </View>
+                <View style={styles.editField}>
+                  <Text style={styles.editLabel}>End</Text>
+                  {isWeb ? (
+                    <TextInput
+                      style={styles.editValueInput}
+                      value={webEditEndInput}
+                      onChangeText={setWebEditEndInput}
+                      onBlur={() => handleWebEditBlur('end')}
+                      placeholder="HH:mm"
+                      inputMode="text"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  ) : (
                     <Pressable onPress={() => openPicker('end')}>
                       <Text style={styles.editValue}>{dayjs(editEnd).format('h:mm A')}</Text>
                     </Pressable>
-                  </View>
+                  )}
                 </View>
-                {showPicker ? (
-                  <DateTimePicker
-                    value={pickerTarget === 'end' ? editEnd : editStart}
-                    mode={pickerMode}
-                    onChange={onPickerChange}
-                    display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              </View>
+              {showPicker && !isWeb ? (
+                <DateTimePicker
+                  value={pickerTarget === 'end' ? editEnd : editStart}
+                  mode={pickerMode}
+                  onChange={onPickerChange}
+                  display={Platform.OS === 'ios' ? 'inline' : 'default'}
                   />
                 ) : null}
                 <Text style={styles.editHint}>
@@ -389,6 +504,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(226,232,240,0.65)',
     marginBottom: 4
+  },
+  editValueInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.35)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(15,23,42,0.6)',
+    color: '#f8fafc',
+    fontSize: 16,
+    fontWeight: '500'
   },
   editValue: {
     fontSize: 16,

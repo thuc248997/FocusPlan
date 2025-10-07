@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -11,8 +11,11 @@ import DateTimePicker, {
   DateTimePickerEvent
 } from '@react-native-community/datetimepicker';
 import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { useTasks } from '../context/TaskProvider';
 import { PrimaryButton } from './buttons';
+
+dayjs.extend(customParseFormat);
 
 const INITIAL_DURATION_MINUTES = 60;
 const MIN_DURATION_MINUTES = 15;
@@ -43,7 +46,11 @@ export const TaskForm = () => {
   const [endAt, setEndAt] = useState(initialTimes.end);
   const [showPicker, setShowPicker] = useState(false);
   const [activePicker, setActivePicker] = useState<'date' | 'start' | 'end' | null>(null);
-  const isInlinePicker = useMemo(() => Platform.OS === 'ios' || Platform.OS === 'web', []);
+  const isInlinePicker = useMemo(() => Platform.OS === 'ios', []);
+  const isWeb = Platform.OS === 'web';
+  const [webDateInput, setWebDateInput] = useState(() => dayjs(initialTimes.start).format('YYYY-MM-DD'));
+  const [webStartInput, setWebStartInput] = useState(() => dayjs(initialTimes.start).format('HH:mm'));
+  const [webEndInput, setWebEndInput] = useState(() => dayjs(initialTimes.end).format('HH:mm'));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const applyStartChange = (mode: 'date' | 'time', selected: Date) => {
@@ -101,8 +108,58 @@ export const TaskForm = () => {
     };
 
   const displayPicker = (target: 'date' | 'start' | 'end') => {
+    if (isWeb) {
+      return;
+    }
     setActivePicker(target);
     setShowPicker(true);
+  };
+
+  useEffect(() => {
+    if (!isWeb) {
+      return;
+    }
+    setWebDateInput(dayjs(startAt).format('YYYY-MM-DD'));
+    setWebStartInput(dayjs(startAt).format('HH:mm'));
+  }, [isWeb, startAt]);
+
+  useEffect(() => {
+    if (!isWeb) {
+      return;
+    }
+    setWebEndInput(dayjs(endAt).format('HH:mm'));
+  }, [endAt, isWeb]);
+
+  const handleWebInputBlur = (target: 'date' | 'start' | 'end') => {
+    if (!isWeb || typeof window === 'undefined') {
+      return;
+    }
+    const format = target === 'date' ? 'YYYY-MM-DD' : 'HH:mm';
+    const rawValue = target === 'date' ? webDateInput : target === 'start' ? webStartInput : webEndInput;
+    const parsed = dayjs(rawValue, format, true);
+    if (!parsed.isValid()) {
+      window.alert(
+        target === 'date'
+          ? 'Ngày không hợp lệ. Vui lòng dùng định dạng YYYY-MM-DD.'
+          : 'Giờ không hợp lệ. Vui lòng dùng định dạng HH:mm.'
+      );
+      if (target === 'date') {
+        setWebDateInput(dayjs(startAt).format('YYYY-MM-DD'));
+      } else if (target === 'start') {
+        setWebStartInput(dayjs(startAt).format('HH:mm'));
+      } else {
+        setWebEndInput(dayjs(endAt).format('HH:mm'));
+      }
+      return;
+    }
+    const nextDate = parsed.toDate();
+    if (target === 'date') {
+      applyStartChange('date', nextDate);
+    } else if (target === 'start') {
+      applyStartChange('time', nextDate);
+    } else {
+      applyEndChange(nextDate);
+    }
   };
 
   const reset = () => {
@@ -164,6 +221,17 @@ export const TaskForm = () => {
               onChange={handlePickerChange('date')}
               display={Platform.OS === 'ios' ? 'inline' : 'default'}
             />
+          ) : isWeb ? (
+            <TextInput
+              style={[styles.pickerField, styles.webInput]}
+              value={webDateInput}
+              onChangeText={setWebDateInput}
+              onBlur={() => handleWebInputBlur('date')}
+              placeholder="YYYY-MM-DD"
+              inputMode="text"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
           ) : (
             <Pressable
               style={styles.pickerField}
@@ -182,6 +250,17 @@ export const TaskForm = () => {
               onChange={handlePickerChange('start')}
               display={Platform.OS === 'ios' ? 'inline' : 'default'}
               is24Hour
+            />
+          ) : isWeb ? (
+            <TextInput
+              style={[styles.pickerField, styles.webInput]}
+              value={webStartInput}
+              onChangeText={setWebStartInput}
+              onBlur={() => handleWebInputBlur('start')}
+              placeholder="HH:mm"
+              inputMode="text"
+              autoCapitalize="none"
+              autoCorrect={false}
             />
           ) : (
             <Pressable
@@ -202,6 +281,17 @@ export const TaskForm = () => {
               display={Platform.OS === 'ios' ? 'inline' : 'default'}
               is24Hour
             />
+          ) : isWeb ? (
+            <TextInput
+              style={[styles.pickerField, styles.webInput]}
+              value={webEndInput}
+              onChangeText={setWebEndInput}
+              onBlur={() => handleWebInputBlur('end')}
+              placeholder="HH:mm"
+              inputMode="text"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
           ) : (
             <Pressable
               style={styles.pickerField}
@@ -212,7 +302,7 @@ export const TaskForm = () => {
           )}
         </View>
       </View>
-      {!isInlinePicker && showPicker && activePicker ? (
+      {!isInlinePicker && showPicker && activePicker && Platform.OS !== 'web' ? (
         <DateTimePicker
           value={activePicker === 'end' ? endAt : startAt}
           onChange={handlePickerChange(activePicker)}
@@ -286,6 +376,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: 'rgba(15,23,42,0.6)',
     justifyContent: 'center'
+  },
+  webInput: {
+    color: '#f8fafc'
   },
   value: {
     fontSize: 16,

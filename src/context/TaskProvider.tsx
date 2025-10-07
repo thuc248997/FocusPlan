@@ -72,8 +72,14 @@ export const TaskProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     async (task: Task) => {
       try {
         setSyncingTaskId(task.id);
+        console.log('Starting sync for task:', task.id);
+        
         const token = await googleAuth.ensureAuthenticated();
+        console.log('Got authentication token, syncing with Google Calendar...');
+        
         const eventId = await upsertCalendarEvent(token, { task });
+        console.log('Calendar event created/updated:', eventId);
+        
         await commitTasks((prev) =>
           prev.map((existing) =>
             existing.id === task.id
@@ -86,9 +92,14 @@ export const TaskProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
               : existing
           )
         );
+        console.log('Task updated successfully');
       } catch (error) {
         console.error('Calendar sync failed', error);
-        Alert.alert('Sync failed', 'Unable to sync task with Google Calendar.');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        Alert.alert(
+          'Sync failed', 
+          `Unable to sync task with Google Calendar.\n\nError: ${errorMessage}\n\nPlease check your Google account connection and try again.`
+        );
         throw error;
       } finally {
         setSyncingTaskId(null);

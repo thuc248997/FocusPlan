@@ -35,7 +35,11 @@ export const upsertCalendarEvent = async (
   token: TokenBundle,
   { calendarId = 'primary', task }: CalendarEventInput
 ): Promise<string> => {
-  const response = await fetch(getSyncEndpoint(), {
+  const endpoint = getSyncEndpoint();
+  console.log('Syncing to endpoint:', endpoint);
+  console.log('Task data:', { id: task.id, title: task.title, scheduledTime: task.scheduledTime });
+  
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token.accessToken}`,
@@ -46,6 +50,11 @@ export const upsertCalendarEvent = async (
 
   if (!response.ok) {
     const message = await response.text();
+    console.error('Calendar sync failed:', {
+      status: response.status,
+      statusText: response.statusText,
+      message
+    });
     throw new Error(`Failed to sync calendar event (status ${response.status}): ${message}`);
   }
 
@@ -53,5 +62,7 @@ export const upsertCalendarEvent = async (
   if (!json.eventId) {
     throw new Error('Calendar sync did not return an event ID.');
   }
+  
+  console.log('Successfully synced event:', json.eventId);
   return json.eventId;
 };

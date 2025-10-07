@@ -5,7 +5,7 @@ import { PrimaryButton, SecondaryButton } from './buttons';
 import { useWeeklyCalendar } from '../hooks/useWeeklyCalendar';
 
 export const GoogleAuthCard = () => {
-  const { isAuthenticated, connect, disconnect, initializing } = useGoogleAuthContext();
+  const { isAuthenticated, connect, disconnect, initializing, missingClientConfig } = useGoogleAuthContext();
   const { events, loading, error, refresh } = useWeeklyCalendar();
 
   const dayFormatter = useMemo(
@@ -53,7 +53,7 @@ export const GoogleAuthCard = () => {
       {isAuthenticated ? (
         <>
           <View style={styles.statusRow}>
-            <Text style={styles.connected}>Connected</Text>
+            <Text style={styles.connected}>Connected with google calender</Text>
             <View style={styles.statusActions}>
               {loading ? (
                 <ActivityIndicator size="small" color="#cbd5f5" />
@@ -95,6 +95,11 @@ export const GoogleAuthCard = () => {
             onPress={connect}
             disabled={initializing}
           />
+          {missingClientConfig ? (
+            <Text style={styles.errorMessage}>
+              Add a Google OAuth client ID to your environment before connecting.
+            </Text>
+          ) : null}
         </View>
       )}
     </View>
@@ -161,6 +166,11 @@ const styles = StyleSheet.create({
   error: {
     fontSize: 14,
     color: '#f87171'
+  },
+  errorMessage: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#f97316'
   },
   empty: {
     fontSize: 14,

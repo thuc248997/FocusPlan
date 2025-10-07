@@ -6,6 +6,11 @@ type ConfigContext = {
   config: ExpoConfig;
 };
 
+const readEnv = (value?: string) => {
+  const trimmed = value?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : undefined;
+};
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'FocusPlan',
@@ -34,10 +39,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     eas: {
       projectId: '00000000-0000-0000-0000-000000000000'
     },
-    googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID ?? '',
-    googleAndroidClientId: process.env.GOOGLE_ANDROID_CLIENT_ID ?? '',
-    googleIOSClientId: process.env.GOOGLE_IOS_CLIENT_ID ?? '',
-    googleExpoClientId: process.env.GOOGLE_EXPO_CLIENT_ID ?? '',
+    googleWebClientId: readEnv(process.env.GOOGLE_WEB_CLIENT_ID),
+    googleAndroidClientId: readEnv(process.env.GOOGLE_ANDROID_CLIENT_ID),
+    googleIOSClientId: readEnv(process.env.GOOGLE_IOS_CLIENT_ID),
+    googleExpoClientId: readEnv(process.env.GOOGLE_EXPO_CLIENT_ID),
     // googleRedirectUri: process.env.GOOGLE_REDIRECT_URI ?? 'https://focusplan.around-ai.com/api/auth/callback/google',
     googleRedirectUri:
       process.env.GOOGLE_REDIRECT_URI ??
@@ -52,9 +57,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         process.env.GOOGLE_REDIRECT_URI_PROD ??
         'https://focusplan.around-ai.com/api/auth/callback/google'
     },
-    googleApiKey: process.env.GOOGLE_API_KEY ?? '',
-    openAIApiKey: process.env.OPENAI_API_KEY ?? '',
-    openAIModel: process.env.OPENAI_MODEL ?? '',
+    googleApiKey: readEnv(process.env.GOOGLE_API_KEY),
+    openAIApiKey: readEnv(process.env.OPENAI_API_KEY),
+    openAIModel: readEnv(process.env.OPENAI_MODEL),
     // websiteUrl: process.env.WEBSITE_URL ?? 'https://focusplan.around-ai.com'
     websiteUrl:
       process.env.WEBSITE_URL ??
