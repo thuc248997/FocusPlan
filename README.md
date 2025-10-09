@@ -1,143 +1,201 @@
-# FocusPlan
+# 💬 Chat AI - AI Chatbot Application
 
-FocusPlan is an Expo-managed (React Native) application that lets you capture ## Verification checklist
+<div align="center">
 
-- `npm run lint` checks source quality using ESLint and TypeScript.
-- `npm run start` boots Expo's bundler. Watch the terminal for runtime errors.
-- To reset emulator/device state during testing, clear AsyncStorage via device settings or reinstall the Expo Go app.
+![Next.js](https://img.shields.io/badge/Next.js-14-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-## Troubleshooting
+A modern, ChatGPT-style AI chatbot application built with Next.js, React, and TypeScript.
 
-### "Unable to obtain Google credentials" Error
+[Live Demo](#) • [Documentation](DOCUMENTATION.md) • [Quick Start](QUICK_START.md) • [Features](FEATURES.md)
 
-This is the most common issue. Follow these steps:
+</div>
 
-1. **Verify Google Cloud Console Setup:**
-   - Ensure Google Calendar API is enabled
-   - Check OAuth consent screen includes `calendar.events` scope
-   - Verify redirect URIs match your app configuration
+---
 
-2. **Check Environment Variables:**
-   - Ensure `.env` file has `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
-   - Restart the Expo dev server after changing `.env`
+## ✨ Features
 
-3. **Clear Authentication State:**
-   - Sign out from the app
-   - Clear app storage/cache
-   - Restart the app and sign in again
+- 💬 **Real-time Chat Interface** - Smooth, responsive chat experience
+- 🎨 **Modern UI** - ChatGPT-inspired design with dark mode
+- 📱 **Responsive Design** - Works on desktop, tablet, and mobile
+- 💾 **Chat History** - Persistent storage with date grouping
+- 📝 **Markdown Support** - Rich text formatting for messages
+- ⚡ **Fast Performance** - Built with Next.js 14 App Router
+- 🔐 **Authentication UI** - Sign up page included
+- ✨ **Smooth Animations** - Framer Motion animations
 
-4. **Enable Debug Mode:**
-   - Import and add `<GoogleAuthDebug />` component to your App.tsx (only shows in dev mode)
-   - Check console logs for detailed authentication flow
+## 🚀 Quick Start
 
-5. **Detailed Guide:**
-   - See [GOOGLE_CALENDAR_SETUP.md](./GOOGLE_CALENDAR_SETUP.md) for comprehensive troubleshooting
+### Prerequisites
 
-### Common Issues
+- Node.js 18 or higher
+- npm or yarn package manager
 
-- **401 Unauthorized:** Token expired - sign out and back in
-- **403 Forbidden:** Calendar API not enabled or scope not granted
-- **Network errors:** Check API endpoint URL in `app.config.ts`
-- **CORS errors (web only):** Verify allowed origins in `api/sync-task.ts`ing tasks, choose the exact time you plan to work on them, and keep Google Calendar in sync with a single tap. The project ships with persistent local storage, Google OAuth, and Calendar API helpers so you can get productive quickly on Android, iOS, and the web.
+### Installation
 
-## Features
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/chat-ai.git
 
-- Add lightweight tasks with notes and editable start/end times
-- Persist your plan locally so tasks survive reloads
-- Connect your Google account with OAuth 2.0 and the Calendar API scope
-- Create calendar events for individual tasks (automatic when already signed in)
-- Works on Android, iOS and as a responsive web app via Expo
+# Navigate to the project
+cd chat-ai
 
-## Project structure
+# Install dependencies
+npm install
 
-```
-.
-├─ App.tsx                    # Application shell wiring providers and UI building blocks
-├─ app.config.ts              # Expo configuration + Google client IDs pulled from environment
-├─ src/
-│  ├─ components/             # Reusable UI pieces (task form, list, buttons, auth card)
-│  ├─ context/                # React context providers for tasks and Google auth state
-│  ├─ hooks/                  # useGoogleAuth hook wrapping expo-auth-session
-│  ├─ services/               # Google Calendar API integration helpers
-│  ├─ storage/                # AsyncStorage + SecureStore persistence utilities
-│  └─ types/                  # Shared TypeScript contracts
-└─ package.json               # Dependencies and scripts
+# Start development server
+npm run dev
 ```
 
-## Prerequisites
+Open [http://localhost:3000](http://localhost:3000) to see your app!
 
-- Node.js 18 or newer (LTS recommended)
-- npm 9+ (bundled with Node) or yarn/pnpm if you prefer alternative package managers
-- Expo CLI (`npm install --global expo-cli`) for convenient local development
-- An Android/iOS simulator or the Expo Go app on a physical device
+## 📚 Documentation
 
-## Getting started
+- **[QUICK_START.md](QUICK_START.md)** - Get started quickly
+- **[DOCUMENTATION.md](DOCUMENTATION.md)** - Complete technical docs
+- **[FEATURES.md](FEATURES.md)** - Features checklist & roadmap
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment guide
+- **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** - Project overview
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Create a `.env` file in the project root with your Google credentials (see next section for how to obtain them):
-   ```bash
-   GOOGLE_WEB_CLIENT_ID=your_web_oauth_client_id
-   GOOGLE_ANDROID_CLIENT_ID=your_android_oauth_client_id
-   GOOGLE_IOS_CLIENT_ID=your_ios_oauth_client_id
-   GOOGLE_EXPO_CLIENT_ID=your_expo_client_id    # optional but convenient during development
-   GOOGLE_REDIRECT_URI=https://your-site.com     # optional override if Google needs an explicit redirect
-   GOOGLE_API_KEY=your_google_api_key           # optional for future enhancements
-   OPENAI_API_KEY=your_openai_api_key           # required for the GPT scheduling assistant
-   OPENAI_MODEL=gpt-4o-mini                     # optional override for the assistant model
-  ```
-3. Launch the app with Expo:
-   ```bash
-   npm run start
-   ```
-4. Use the on-screen QR code in Expo DevTools or `npm run android` / `npm run ios` / `npm run web` to target a specific platform.
+## 🛠 Tech Stack
 
-## Configuring Google OAuth and Calendar API
+| Category | Technology |
+|----------|------------|
+| **Framework** | Next.js 14 (App Router) |
+| **Language** | TypeScript |
+| **Styling** | Tailwind CSS |
+| **UI Components** | Custom React components |
+| **Icons** | Lucide React |
+| **Markdown** | React Markdown |
+| **Animations** | Framer Motion |
 
-**⚠️ Important:** If you're experiencing "Unable to obtain Google credentials" errors, see [GOOGLE_CALENDAR_SETUP.md](./GOOGLE_CALENDAR_SETUP.md) for detailed troubleshooting steps.
+## 📁 Project Structure
 
-1. Visit the [Google Cloud Console](https://console.cloud.google.com/) and create (or select) a project.
-2. Enable the **Google Calendar API** under *APIs & Services → Library*.
-3. Configure an OAuth consent screen (External or Internal) and publish it in testing mode or production depending on your needs.
-   - **Important:** Add the scope `https://www.googleapis.com/auth/calendar.events` to your OAuth consent screen
-4. Create OAuth 2.0 client IDs:
-   - **Web client**: required for Expo web. Add the Expo Auth Session redirect URI `https://auth.expo.io/@your-expo-username/focusplan` (replace with your actual username/slug) under *Authorized redirect URIs*.
-     - If you deploy the web app (e.g., Vercel), also add that origin as a redirect (for example `https://focusplan.vercel.app/`). Use the same value in `GOOGLE_REDIRECT_URI` so the client and app stay in sync.
-   - **Android client**: use your app package `com.focusplan.app`. Download the SHA-1 from the Expo credentials page or generate one in your native build pipeline.
-   - **iOS client**: use the bundle identifier `com.focusplan.app`.
-   - **Expo client (optional but useful)**: create a second web client specifically for development with Expo Go and use the redirect `https://auth.expo.io/@your-expo-username/focusplan`.
-5. Paste the resulting client IDs into the `.env` file as shown earlier. Make sure to use the `EXPO_PUBLIC_` prefix for client-side variables:
-   ```bash
-   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your_web_oauth_client_id
-   ```
-6. When prompted on device, authenticate with your Google account, approve the `https://www.googleapis.com/auth/calendar.events` scope, and FocusPlan will take care of creating calendar events for your tasks.
+```
+FocusPlan/
+├── src/
+│   ├── app/              # Next.js pages
+│   │   ├── layout.tsx    # Root layout
+│   │   ├── page.tsx      # Main chat page
+│   │   └── signup/       # Sign up page
+│   ├── components/       # React components
+│   │   ├── ChatInterface.tsx
+│   │   ├── ChatArea.tsx
+│   │   ├── Sidebar.tsx
+│   │   └── MessageBubble.tsx
+│   ├── lib/              # Utility functions
+│   └── types/            # TypeScript types
+├── public/               # Static assets
+├── design/              # Figma design files
+└── package.json         # Dependencies
+```
 
-## Smart scheduling assistant
+## 🎨 Screenshots
 
-- Set `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`) in your environment before starting the app. The key is read on the device, so prefer a throwaway/development key when sharing builds.
-- Launch the "Smart scheduling assistant" card beneath the task form to chat with GPT about your current plan. The assistant sees a summary of your existing tasks and can suggest new focus blocks or reschedule items.
-- After adjusting the plan based on the assistant’s advice, edit task times inline and tap **Sync** to push the updated schedule to Google Calendar.
+<table>
+  <tr>
+    <td><img src="design/chat-ai.png" alt="Main Chat" width="400"/></td>
+    <td><img src="design/new-chat.png" alt="New Chat" width="400"/></td>
+  </tr>
+  <tr>
+    <td><img src="design/signup.png" alt="Sign Up" width="400"/></td>
+    <td><img src="design/chat-ai-1.png" alt="Chat Example" width="400"/></td>
+  </tr>
+</table>
 
-## How syncing works
+## 🎯 Current Features
 
-- Tasks are stored in AsyncStorage (`src/storage/taskStorage.ts`), so they are available offline.
-- Google access tokens are persisted with SecureStore (`src/storage/tokenStorage.ts`). Tokens are refreshed on demand by re-running the OAuth flow when they expire.
-- When you add a task while signed in, FocusPlan creates a Google Calendar event immediately. Otherwise you can tap **Sync** later from the task list.
-- Calendar events honor the start and end times you set on each task (defaulting to one hour when the end time is omitted).
+✅ Multiple chat sessions  
+✅ Chat history with localStorage  
+✅ Responsive sidebar  
+✅ Message input & display  
+✅ Markdown formatting  
+✅ Dark mode interface  
+✅ Mobile-friendly design  
+✅ Date-grouped history  
+✅ Chat deletion  
+✅ Welcome screen with suggestions  
 
-## Verification checklist
+## 🚧 Coming Soon
 
-- `npm run lint` checks source quality using ESLint and TypeScript.
-- `npm run start` boots Expo’s bundler. Watch the terminal for runtime errors.
-- To reset emulator/device state during testing, clear AsyncStorage via device settings or reinstall the Expo Go app.
+- [ ] Real AI integration (OpenAI/Anthropic)
+- [ ] User authentication
+- [ ] Database integration
+- [ ] Chat sharing
+- [ ] Export functionality
+- [ ] Voice input
+- [ ] Code syntax highlighting
 
-## Next steps / ideas
+See [FEATURES.md](FEATURES.md) for the complete roadmap.
 
-1. Extend task metadata (duration, reminders, tags) and push richer details to calendar events.
-2. Show upcoming events pulled back from Google Calendar to prevent overlaps.
-3. Add background sync or scheduled reminders using Expo Notifications.
-4. Persist tasks remotely (e.g., Supabase, Firebase, or your own backend) for multi-device continuity.
+## 🛠 Development
 
-FocusPlan is ready for you to iterate—clone it, add your credentials, and start planning smarter sessions that stay aligned with your Google Calendar.
+```bash
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
+
+# Run linter
+npm run lint
+```
+
+## 📦 Deployment
+
+Deploy easily to:
+
+- **Vercel** (Recommended) - [Guide](DEPLOYMENT.md#1-vercel-recommended-)
+- **Netlify** - [Guide](DEPLOYMENT.md#2-netlify)
+- **Railway** - [Guide](DEPLOYMENT.md#3-railway)
+- **Docker** - [Guide](DEPLOYMENT.md#4-docker-deployment)
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Design inspired by ChatGPT
+- Figma design: ChatGPT v4.5 (Community)
+- Icons by [Lucide](https://lucide.dev)
+- Built with [Next.js](https://nextjs.org)
+
+## 📞 Support
+
+If you have any questions or run into issues:
+
+- Check the [Documentation](DOCUMENTATION.md)
+- Review the [Quick Start Guide](QUICK_START.md)
+- Open an [Issue](https://github.com/yourusername/chat-ai/issues)
+
+## ⭐ Star History
+
+If you find this project useful, please consider giving it a star!
+
+---
+
+<div align="center">
+
+**Built with ❤️ using Next.js**
+
+[Report Bug](https://github.com/yourusername/chat-ai/issues) • [Request Feature](https://github.com/yourusername/chat-ai/issues)
+
+</div>

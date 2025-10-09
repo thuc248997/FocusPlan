@@ -1,137 +1,102 @@
-# Quick Start - Fixed Version
+# Quick Start Guide
 
-## What Was Fixed
+## Installation & Setup
 
-The "Unable to obtain Google credentials" error has been fixed with the following improvements:
-
-1. ✅ **Enhanced error messages** - Now shows specific reasons for auth failures
-2. ✅ **Better logging** - Console logs throughout authentication flow
-3. ✅ **Debug tools** - Configuration checker and debug component
-4. ✅ **Complete documentation** - Step-by-step setup guides
-5. ✅ **Dependency fixes** - All required packages installed
-
-## Quick Setup (3 Steps)
-
-### 1. Verify Your Configuration
+### 1. Install Dependencies
 ```bash
-npm run check:google
+npm install
 ```
 
-This checks if your `.env` file is properly set up. You should see all green checkmarks.
-
-### 2. Ensure Google Cloud Console is Set Up
-
-Required settings in [Google Cloud Console](https://console.cloud.google.com/):
-
-- ✅ Google Calendar API **enabled**
-- ✅ OAuth consent screen configured
-- ✅ Scope `https://www.googleapis.com/auth/calendar.events` added
-- ✅ Web OAuth Client ID created
-- ✅ Redirect URIs configured:
-  - `http://localhost:8081`
-  - `https://auth.expo.io/@your-username/focusplan`
-
-### 3. Run the App
+### 2. Start Development Server
 ```bash
-npm start
+npm run dev
 ```
 
-Press `w` for web, or scan QR code for mobile.
+### 3. Open in Browser
+Navigate to [http://localhost:3000](http://localhost:3000)
 
-## Testing the Fix
+## Usage
 
-1. **Sign in with Google** - You should see detailed logs in console
-2. **Add a task** - Fill in title and time
-3. **Sync to calendar** - Click the sync button
-4. **Check Google Calendar** - Event should appear
+### Creating a New Chat
+1. Click the "New Chat" button in the sidebar
+2. Type your message in the input field
+3. Press Enter to send (Shift+Enter for new line)
 
-## If You Still Have Issues
+### Managing Chats
+- **Switch Chat:** Click on any chat in the sidebar
+- **Delete Chat:** Hover over a chat and click the trash icon
+- **View History:** Chats are automatically grouped by date (Today, Yesterday, etc.)
 
-### Enable Debug Mode
+### Mobile Usage
+- Tap the menu icon (☰) to open/close the sidebar
+- Tap outside the sidebar to close it
 
-Add to your `App.tsx` (inside the main component):
+## Features
 
-```tsx
-import { GoogleAuthDebug } from './src/components/GoogleAuthDebug';
+### Current Features
+- Multiple chat sessions
+- Persistent chat history
+- Markdown message formatting
+- Responsive design
+- Dark mode interface
 
-// Add this component anywhere in your render:
-<GoogleAuthDebug />
-```
+### Mock AI Responses
+Currently using mock responses. To integrate real AI:
 
-This shows real-time authentication status (only in dev mode).
-
-### Check Console Logs
-
-Look for these messages in your console:
-
-✅ **Success:**
-```
-Starting sync for task: abc123
-Got authentication token, syncing with Google Calendar...
-Calendar event created/updated: xyz789
-Task updated successfully
-```
-
-❌ **Failure - Common Issues:**
-
-**"Token expired"**
-```
-Solution: Sign out and sign in again
-```
-
-**"Permission denied"**
-```
-Solution: Check Google Console - ensure Calendar API is enabled
-```
-
-**"Failed to sync calendar event (status 401)"**
-```
-Solution: Token invalid. Clear app storage and sign in again
-```
-
-**"Network request failed"**
-```
-Solution: Check that API endpoint is accessible
-For local dev: Ensure http://localhost:8081/api/sync-task is running
-```
-
-## Detailed Guides
-
-- **Setup Guide:** [GOOGLE_CALENDAR_SETUP.md](./GOOGLE_CALENDAR_SETUP.md)
-- **All Fixes:** [FIXES.md](./FIXES.md)
-- **Main README:** [README.md](./README.md)
-
-## Common Commands
-
+1. Add API key to `.env.local`:
 ```bash
-# Check configuration
-npm run check:google
-
-# Start dev server
-npm start
-
-# Run on web
-npm run web
-
-# Lint code
-npm run lint
+OPENAI_API_KEY=your_key_here
 ```
 
-## Support
+2. Create API route in `src/app/api/chat/route.ts`
 
-Still stuck? Check the detailed error message in:
-1. App console (browser DevTools or terminal)
-2. Debug component (if enabled)
-3. [GOOGLE_CALENDAR_SETUP.md](./GOOGLE_CALENDAR_SETUP.md) troubleshooting section
+3. Update `ChatInterface.tsx` to call the API
+
+## Keyboard Shortcuts
+
+- `Enter` - Send message
+- `Shift + Enter` - New line in message
+- `Cmd/Ctrl + K` - New chat (coming soon)
+
+## Troubleshooting
+
+### Port Already in Use
+```bash
+# Kill process on port 3000
+lsof -ti:3000 | xargs kill -9
+
+# Or use a different port
+npm run dev -- -p 3001
+```
+
+### Clear Chat History
+Open browser console and run:
+```javascript
+localStorage.clear()
+```
+
+### Dependencies Issues
+```bash
+# Clear cache and reinstall
+rm -rf node_modules package-lock.json
+npm install
+```
+
+## Next Steps
+
+1. ✅ Set up the development environment
+2. ✅ Explore the chat interface
+3. 🔲 Integrate real AI API
+4. 🔲 Add authentication
+5. 🔲 Deploy to production
+
+## Resources
+
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Tailwind CSS](https://tailwindcss.com/docs)
+- [React Markdown](https://github.com/remarkjs/react-markdown)
+- [Lucide Icons](https://lucide.dev)
 
 ---
 
-**The app is now fixed and ready to use!** 🎉
-
-Main improvements:
-- Clear, actionable error messages
-- Detailed logging for debugging
-- Configuration validation tools
-- Comprehensive documentation
-
-You should now see exactly what's wrong if authentication fails, instead of the generic "Unable to obtain Google credentials" error.
+Happy coding! 🚀
