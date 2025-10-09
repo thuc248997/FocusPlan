@@ -144,7 +144,7 @@ export default function ChatInterface() {
   }
 
   return (
-    <div className="flex h-screen bg-chat-bg">
+    <div className="flex h-full bg-chat-bg">
       <Sidebar
         chats={chats}
         currentChatId={currentChatId}
