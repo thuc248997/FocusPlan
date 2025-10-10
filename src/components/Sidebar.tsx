@@ -1,27 +1,39 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { MessageSquarePlus, Menu, X, Trash2, MessageSquare, Calendar, Check } from 'lucide-react'
-import { Chat } from '@/types'
+import { MessageSquarePlus, Menu, X, Trash2, MessageSquare, Calendar, Check, Plus, CheckSquare, Edit2 } from 'lucide-react'
+import { Chat, Task } from '@/types'
 import { formatDate, cn } from '@/lib/utils'
 import { initiateGoogleCalendarAuth, isGoogleCalendarConnected, disconnectGoogleCalendar, getGoogleUserInfo, type GoogleUserInfo } from '@/lib/googleCalendar'
 
 interface SidebarProps {
   chats: Chat[]
+  tasks: Task[]
   currentChatId: string | null
+  currentTaskId: string | null
   onNewChat: () => void
+  onNewTask: () => void
   onSelectChat: (chatId: string) => void
+  onSelectTask: (taskId: string) => void
   onDeleteChat: (chatId: string) => void
+  onDeleteTask: (taskId: string) => void
+  onEditTask: (taskId: string) => void
   isOpen: boolean
   onToggle: () => void
 }
 
 export default function Sidebar({
   chats,
+  tasks,
   currentChatId,
+  currentTaskId,
   onNewChat,
+  onNewTask,
   onSelectChat,
+  onSelectTask,
   onDeleteChat,
+  onDeleteTask,
+  onEditTask,
   isOpen,
   onToggle,
 }: SidebarProps) {
@@ -80,6 +92,16 @@ export default function Sidebar({
     return acc
   }, {} as Record<string, Chat[]>)
 
+  // Group tasks by date
+  const groupedTasks = tasks.reduce((acc, task) => {
+    const dateKey = formatDate(new Date(task.date))
+    if (!acc[dateKey]) {
+      acc[dateKey] = []
+    }
+    acc[dateKey].push(task)
+    return acc
+  }, {} as Record<string, Task[]>)
+
   return (
     <>
       {/* Mobile toggle button */}
@@ -101,18 +123,72 @@ export default function Sidebar({
         {/* New Chat Button */}
         <div className="p-3 border-b border-gray-700">
           <button
-            onClick={onNewChat}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-800 hover:bg-gray-700 text-white transition-colors"
+            onClick={onNewTask}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
           >
-            <MessageSquarePlus size={20} />
-            <span className="font-medium">New Chat</span>
+            <Plus size={20} />
+            <span className="font-medium">New Task</span>
           </button>
         </div>
 
         {/* Chat History */}
         <div className="flex-1 overflow-y-auto py-3">
+          {/* Tasks Section */}
+          {Object.entries(groupedTasks).map(([dateKey, dateTasks]) => (
+            <div key={`tasks-${dateKey}`} className="mb-4">
+              <h3 className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase">
+                {dateKey}
+              </h3>
+              <div className="space-y-1 px-2">
+                {dateTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className={cn(
+                      'group relative flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors',
+                      currentTaskId === task.id
+                        ? 'bg-blue-800 text-white'
+                        : 'text-gray-300 hover:bg-gray-800/50'
+                    )}
+                    onClick={() => onSelectTask(task.id)}
+                  >
+                    <CheckSquare size={16} className="flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm truncate">{task.title}</div>
+                      <div className="text-xs text-gray-500">
+                        {task.startTime} - {task.endTime}
+                      </div>
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onEditTask(task.id)
+                        }}
+                        className="p-1 hover:bg-gray-700 rounded transition-opacity"
+                        title="Chỉnh sửa"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDeleteTask(task.id)
+                        }}
+                        className="p-1 hover:bg-gray-700 rounded transition-opacity"
+                        title="Xóa"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* Chats Section */}
           {Object.entries(groupedChats).map(([dateKey, dateChats]) => (
-            <div key={dateKey} className="mb-4">
+            <div key={`chats-${dateKey}`} className="mb-4">
               <h3 className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase">
                 {dateKey}
               </h3>
@@ -144,9 +220,11 @@ export default function Sidebar({
               </div>
             </div>
           ))}
-          {chats.length === 0 && (
+
+          {/* Empty State */}
+          {chats.length === 0 && tasks.length === 0 && (
             <div className="px-4 py-8 text-center text-gray-500 text-sm">
-              No chats yet. Start a new conversation!
+              Chưa có task nào. Tạo task mới để bắt đầu!
             </div>
           )}
         </div>

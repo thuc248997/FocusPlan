@@ -3,13 +3,22 @@
 import { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import ChatArea from './ChatArea'
-import { Chat, Message } from '@/types'
+import NewTaskModal from './NewTaskModal'
+import EditTaskModal from './EditTaskModal'
+import { Chat, Message, Task } from '@/types'
 import { generateId } from '@/lib/utils'
+import { isGoogleCalendarConnected, syncTaskToCalendar } from '@/lib/googleCalendar'
 
 export default function ChatInterface() {
   const [chats, setChats] = useState<Chat[]>([])
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
+  const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false)
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null)
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [isCalendarConnected, setIsCalendarConnected] = useState(false)
 
   useEffect(() => {
     // Load chats from localStorage
@@ -31,6 +40,36 @@ export default function ChatInterface() {
         setCurrentChatId(chatsWithDates[0].id)
       }
     }
+
+    // Load tasks from localStorage
+    const savedTasks = localStorage.getItem('tasks')
+    if (savedTasks) {
+      const parsedTasks = JSON.parse(savedTasks)
+      const tasksWithDates = parsedTasks.map((task: any) => ({
+        ...task,
+        createdAt: new Date(task.createdAt),
+        updatedAt: new Date(task.updatedAt),
+      }))
+      setTasks(tasksWithDates)
+    }
+
+    // Check calendar connection status
+    setIsCalendarConnected(isGoogleCalendarConnected())
+  }, [])
+
+  useEffect(() => {
+    // Listen for connection changes
+    const checkConnection = () => {
+      setIsCalendarConnected(isGoogleCalendarConnected())
+    }
+
+    window.addEventListener('storage', checkConnection)
+    window.addEventListener('focus', checkConnection)
+
+    return () => {
+      window.removeEventListener('storage', checkConnection)
+      window.removeEventListener('focus', checkConnection)
+    }
   }, [])
 
   useEffect(() => {
@@ -40,7 +79,82 @@ export default function ChatInterface() {
     }
   }, [chats])
 
+  useEffect(() => {
+    // Save tasks to localStorage
+    if (tasks.length > 0) {
+      localStorage.setItem('tasks', JSON.stringify(tasks))
+    }
+  }, [tasks])
+
   const currentChat = chats.find((chat) => chat.id === currentChatId)
+
+  const handleNewTask = () => {
+    setIsTaskModalOpen(true)
+  }
+
+  const handleCreateTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>, syncToCalendar: boolean) => {
+    const newTask: Task = {
+      ...taskData,
+      id: generateId(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+    setTasks([newTask, ...tasks])
+    console.log('New task created:', newTask)
+    
+    // Sync to Google Calendar if requested
+    if (syncToCalendar && isCalendarConnected) {
+      try {
+        const result = await syncTaskToCalendar(taskData)
+        console.log('✅ Task synced to Google Calendar:', result)
+        alert('✅ Task đã được tạo và đồng bộ lên Google Calendar!')
+      } catch (error: any) {
+        console.error('❌ Failed to sync task:', error)
+        const errorMessage = error?.message || 'Không thể đồng bộ lên Google Calendar'
+        alert(`⚠️ Task đã được tạo nhưng gặp lỗi khi đồng bộ:\n\n${errorMessage}`)
+        // Update connection status
+        setIsCalendarConnected(isGoogleCalendarConnected())
+      }
+    }
+  }
+
+  const handleEditTask = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId)
+    if (task) {
+      setEditingTask(task)
+      setIsEditTaskModalOpen(true)
+    }
+  }
+
+  const handleUpdateTask = async (taskId: string, updatedTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>, syncToCalendar: boolean) => {
+    const updatedTasks = tasks.map((task) => {
+      if (task.id === taskId) {
+        return {
+          ...task,
+          ...updatedTaskData,
+          updatedAt: new Date(),
+        }
+      }
+      return task
+    })
+    setTasks(updatedTasks)
+    console.log('Task updated:', taskId)
+
+    // Sync to Google Calendar if requested
+    if (syncToCalendar && isCalendarConnected) {
+      try {
+        const result = await syncTaskToCalendar(updatedTaskData)
+        console.log('✅ Updated task synced to Google Calendar:', result)
+        alert('✅ Task đã được cập nhật và đồng bộ lên Google Calendar!')
+      } catch (error: any) {
+        console.error('❌ Failed to sync updated task:', error)
+        const errorMessage = error?.message || 'Không thể đồng bộ lên Google Calendar'
+        alert(`⚠️ Task đã được cập nhật nhưng gặp lỗi khi đồng bộ:\n\n${errorMessage}`)
+        // Update connection status
+        setIsCalendarConnected(isGoogleCalendarConnected())
+      }
+    }
+  }
 
   const handleNewChat = () => {
     const newChat: Chat = {
@@ -56,6 +170,7 @@ export default function ChatInterface() {
 
   const handleSelectChat = (chatId: string) => {
     setCurrentChatId(chatId)
+    setCurrentTaskId(null) // Deselect task when selecting chat
   }
 
   const handleDeleteChat = (chatId: string) => {
@@ -63,6 +178,19 @@ export default function ChatInterface() {
     setChats(updatedChats)
     if (currentChatId === chatId) {
       setCurrentChatId(updatedChats.length > 0 ? updatedChats[0].id : null)
+    }
+  }
+
+  const handleSelectTask = (taskId: string) => {
+    setCurrentTaskId(taskId)
+    setCurrentChatId(null) // Deselect chat when selecting task
+  }
+
+  const handleDeleteTask = (taskId: string) => {
+    const updatedTasks = tasks.filter((task) => task.id !== taskId)
+    setTasks(updatedTasks)
+    if (currentTaskId === taskId) {
+      setCurrentTaskId(updatedTasks.length > 0 ? updatedTasks[0].id : null)
     }
   }
 
@@ -147,10 +275,16 @@ export default function ChatInterface() {
     <div className="flex h-full bg-chat-bg">
       <Sidebar
         chats={chats}
+        tasks={tasks}
         currentChatId={currentChatId}
+        currentTaskId={currentTaskId}
         onNewChat={handleNewChat}
+        onNewTask={handleNewTask}
         onSelectChat={handleSelectChat}
+        onSelectTask={handleSelectTask}
         onDeleteChat={handleDeleteChat}
+        onDeleteTask={handleDeleteTask}
+        onEditTask={handleEditTask}
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
       />
@@ -160,6 +294,22 @@ export default function ChatInterface() {
         onNewChat={handleNewChat}
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+      />
+      <NewTaskModal
+        isOpen={isTaskModalOpen}
+        onClose={() => setIsTaskModalOpen(false)}
+        onCreateTask={handleCreateTask}
+        isCalendarConnected={isCalendarConnected}
+      />
+      <EditTaskModal
+        isOpen={isEditTaskModalOpen}
+        task={editingTask}
+        onClose={() => {
+          setIsEditTaskModalOpen(false)
+          setEditingTask(null)
+        }}
+        onUpdateTask={handleUpdateTask}
+        isCalendarConnected={isCalendarConnected}
       />
     </div>
   )

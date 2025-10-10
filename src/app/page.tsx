@@ -111,14 +111,14 @@ export default function Home() {
       <div className="flex flex-1 overflow-hidden">
         {isCalendarConnected ? (
           <>
-            {/* Calendar View - Left Half */}
+            {/* Chat View - Left Half */}
             <div className="w-1/2 border-r border-gray-700">
-              <MonthCalendar />
+              <ChatInterface />
             </div>
             
-            {/* Chat View - Right Half */}
+            {/* Calendar View - Right Half */}
             <div className="w-1/2">
-              <ChatInterface />
+              <MonthCalendar />
             </div>
           </>
         ) : (

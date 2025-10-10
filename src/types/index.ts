@@ -19,3 +19,14 @@ export interface User {
   email: string
   avatar?: string
 }
+
+export interface Task {
+  id: string
+  title: string
+  description: string
+  date: string // Format: YYYY-MM-DD
+  startTime: string // Format: HH:MM
+  endTime: string // Format: HH:MM
+  createdAt: Date
+  updatedAt: Date
+}

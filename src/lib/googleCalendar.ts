@@ -172,10 +172,57 @@ export async function createCalendarEvent(eventData: {
   })
 
   if (!response.ok) {
-    throw new Error('Failed to create calendar event')
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to create calendar event')
   }
 
   return response.json()
+}
+
+/**
+ * Sync task to Google Calendar
+ * Converts task format to Google Calendar event format
+ */
+export async function syncTaskToCalendar(task: {
+  title: string
+  description: string
+  date: string
+  startTime: string
+  endTime: string
+}) {
+  const token = getGoogleCalendarToken()
+  
+  if (!token) {
+    throw new Error('Chưa kết nối với Google Calendar. Vui lòng kết nối lại.')
+  }
+
+  // Check if token is expired
+  if (isTokenExpired()) {
+    throw new Error('Token đã hết hạn. Vui lòng kết nối lại với Google Calendar.')
+  }
+
+  // Convert date and time to ISO format
+  const startDateTime = `${task.date}T${task.startTime}:00`
+  const endDateTime = `${task.date}T${task.endTime}:00`
+
+  const eventData = {
+    summary: task.title,
+    description: task.description,
+    start: startDateTime,
+    end: endDateTime,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  }
+
+  try {
+    return await createCalendarEvent(eventData)
+  } catch (error: any) {
+    // If authentication error, suggest reconnecting
+    if (error.message?.includes('authentication') || error.message?.includes('OAuth')) {
+      disconnectGoogleCalendar()
+      throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng kết nối lại với Google Calendar.')
+    }
+    throw error
+  }
 }
 
 /**
