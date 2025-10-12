@@ -16,15 +16,29 @@ export async function GET(request: NextRequest) {
     }
 
     const accessToken = authHeader.substring(7)
+    const { searchParams } = new URL(request.url)
+    
+    // Get query parameters for date range
+    const timeMin = searchParams.get('timeMin') || new Date().toISOString()
+    const timeMax = searchParams.get('timeMax')
+    const maxResults = searchParams.get('maxResults') || '20'
+
+    // Build query parameters
+    const queryParams: Record<string, string> = {
+      maxResults,
+      orderBy: 'startTime',
+      singleEvents: 'true',
+      timeMin,
+    }
+    
+    // Add timeMax if provided
+    if (timeMax) {
+      queryParams.timeMax = timeMax
+    }
 
     // Fetch events from Google Calendar API
     const response = await fetch(
-      'https://www.googleapis.com/calendar/v3/calendars/primary/events?' + new URLSearchParams({
-        maxResults: '20',
-        orderBy: 'startTime',
-        singleEvents: 'true',
-        timeMin: new Date().toISOString(),
-      }),
+      'https://www.googleapis.com/calendar/v3/calendars/primary/events?' + new URLSearchParams(queryParams),
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,

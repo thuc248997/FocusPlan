@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react'
-import { fetchCalendarEvents } from '@/lib/googleCalendar'
+import { fetchCalendarEvents, fetchCalendarEventsForMonth } from '@/lib/googleCalendar'
 
 interface CalendarEvent {
   id: string
@@ -31,7 +31,15 @@ export default function MonthCalendar() {
   const loadEvents = async () => {
     try {
       setLoading(true)
-      const { events: fetchedEvents } = await fetchCalendarEvents(100)
+      
+      // Calculate date range for the current month
+      const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+      const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59)
+      
+      const { events: fetchedEvents } = await fetchCalendarEventsForMonth(
+        firstDay.toISOString(),
+        lastDay.toISOString()
+      )
       setEvents(fetchedEvents)
     } catch (error) {
       console.error('Error loading events:', error)
@@ -64,6 +72,15 @@ export default function MonthCalendar() {
       const eventDate = new Date(event.start.dateTime || event.start.date || '')
       return eventDate.getDate() === day &&
              eventDate.getMonth() === month &&
+             eventDate.getFullYear() === year
+    })
+  }
+
+  // Get events for the current month
+  const getEventsForCurrentMonth = () => {
+    return events.filter(event => {
+      const eventDate = new Date(event.start.dateTime || event.start.date || '')
+      return eventDate.getMonth() === month &&
              eventDate.getFullYear() === year
     })
   }
@@ -196,7 +213,7 @@ export default function MonthCalendar() {
 
       {/* Event count */}
       <div className="mt-3 pt-3 border-t border-gray-700 text-sm text-gray-400">
-        Tổng số sự kiện trong tháng: <span className="text-white font-medium">{events.length}</span>
+        Tổng số sự kiện trong tháng: <span className="text-white font-medium">{getEventsForCurrentMonth().length}</span>
       </div>
     </div>
   )

@@ -146,6 +146,35 @@ export async function fetchCalendarEvents(maxResults: number = 20) {
 }
 
 /**
+ * Fetch calendar events for a specific date range (typically a month)
+ */
+export async function fetchCalendarEventsForMonth(timeMin: string, timeMax: string, maxResults: number = 100) {
+  const token = getGoogleCalendarToken()
+  
+  if (!token) {
+    throw new Error('Not connected to Google Calendar')
+  }
+
+  const params = new URLSearchParams({
+    timeMin,
+    timeMax,
+    maxResults: maxResults.toString(),
+  })
+
+  const response = await fetch(`/api/calendar/events?${params}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch calendar events')
+  }
+
+  return response.json()
+}
+
+/**
  * Create calendar event
  */
 export async function createCalendarEvent(eventData: {
