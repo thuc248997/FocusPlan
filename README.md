@@ -17,27 +17,44 @@
 
 ---
 
-## 🌟 Features
+## �️ Architecture
+
+Below are architecture diagrams to help you understand the high-level design and request flow.
+
+### Component Diagram
+
+![Component Diagram](./ComponentDiagram.png)
+
+### Sequence Flow
+
+![Sequence Flow](./SequenceFlow.png)
+
+
+##  Features
 
 ### 📝 Task Management
+
 - ✅ **Create & Edit Tasks** - Intuitive task creation with title, description, date, and time
 - 🗑️ **Delete Tasks** - Easy task removal with confirmation
 - 📊 **Task Organization** - Automatic grouping by date
 - 🎯 **Task Tracking** - View all tasks in a clean, organized sidebar
 
 ### 📆 Google Calendar Integration
+
 - 🔗 **OAuth 2.0 Authentication** - Secure Google Calendar connection
 - ☁️ **Sync Tasks** - One-click sync tasks to Google Calendar
 - 📅 **View Calendar** - Visual month calendar with your events
 - 🔄 **Real-time Updates** - Automatic calendar refresh
 
 ### 💬 AI Chat Interface
+
 - 🤖 **AI Assistant** - Chat with an AI assistant for task help
 - 💭 **Single Chat Session** - One ongoing chat session (not persisted across reloads)
 - 🎨 **Beautiful UI** - Modern chat interface with message bubbles
 - ⚡ **Fast Responses** - Quick AI-powered responses
 
 ### 🎨 Modern UI/UX
+
 - 🌙 **Dark Mode** - Eye-friendly dark theme
 - 📱 **Responsive Design** - Works on desktop, tablet, and mobile
 - ✨ **Smooth Animations** - Polished user experience with Framer Motion
