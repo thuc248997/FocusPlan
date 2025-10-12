@@ -2,20 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { MessageSquarePlus, Menu, X, Trash2, MessageSquare, Calendar, Check, Plus, CheckSquare, Edit2 } from 'lucide-react'
-import { Chat, Task } from '@/types'
+import { Task } from '@/types'
 import { formatDate, cn } from '@/lib/utils'
 import { initiateGoogleCalendarAuth, isGoogleCalendarConnected, disconnectGoogleCalendar, getGoogleUserInfo, type GoogleUserInfo } from '@/lib/googleCalendar'
 
 interface SidebarProps {
-  chats: Chat[]
   tasks: Task[]
-  currentChatId: string | null
   currentTaskId: string | null
-  onNewChat: () => void
   onNewTask: () => void
-  onSelectChat: (chatId: string) => void
   onSelectTask: (taskId: string) => void
-  onDeleteChat: (chatId: string) => void
   onDeleteTask: (taskId: string) => void
   onEditTask: (taskId: string) => void
   isOpen: boolean
@@ -23,15 +18,10 @@ interface SidebarProps {
 }
 
 export default function Sidebar({
-  chats,
   tasks,
-  currentChatId,
   currentTaskId,
-  onNewChat,
   onNewTask,
-  onSelectChat,
   onSelectTask,
-  onDeleteChat,
   onDeleteTask,
   onEditTask,
   isOpen,
@@ -82,16 +72,6 @@ export default function Sidebar({
     }
   }
 
-  // Group chats by date
-  const groupedChats = chats.reduce((acc, chat) => {
-    const dateKey = formatDate(chat.updatedAt)
-    if (!acc[dateKey]) {
-      acc[dateKey] = []
-    }
-    acc[dateKey].push(chat)
-    return acc
-  }, {} as Record<string, Chat[]>)
-
   // Group tasks by date
   const groupedTasks = tasks.reduce((acc, task) => {
     const dateKey = formatDate(new Date(task.date))
@@ -120,7 +100,7 @@ export default function Sidebar({
           !isOpen && 'lg:w-0 lg:opacity-0'
         )}
       >
-        {/* New Chat Button */}
+        {/* New Task Button */}
         <div className="p-3 border-b border-gray-700">
           <button
             onClick={onNewTask}
@@ -186,43 +166,8 @@ export default function Sidebar({
             </div>
           ))}
 
-          {/* Chats Section */}
-          {Object.entries(groupedChats).map(([dateKey, dateChats]) => (
-            <div key={`chats-${dateKey}`} className="mb-4">
-              <h3 className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase">
-                {dateKey}
-              </h3>
-              <div className="space-y-1 px-2">
-                {dateChats.map((chat) => (
-                  <div
-                    key={chat.id}
-                    className={cn(
-                      'group relative flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors',
-                      currentChatId === chat.id
-                        ? 'bg-gray-800 text-white'
-                        : 'text-gray-300 hover:bg-gray-800/50'
-                    )}
-                    onClick={() => onSelectChat(chat.id)}
-                  >
-                    <MessageSquare size={16} className="flex-shrink-0" />
-                    <span className="flex-1 text-sm truncate">{chat.title}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onDeleteChat(chat.id)
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded transition-opacity"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-
           {/* Empty State */}
-          {chats.length === 0 && tasks.length === 0 && (
+          {tasks.length === 0 && (
             <div className="px-4 py-8 text-center text-gray-500 text-sm">
               Chưa có task nào. Tạo task mới để bắt đầu!
             </div>

@@ -2,11 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Send, Menu } from 'lucide-react'
-import { Chat, Message } from '@/types'
+import { Message } from '@/types'
 import MessageBubble from './MessageBubble'
 
 interface ChatAreaProps {
-  chat?: Chat
+  messages: Message[]
   onSendMessage: (content: string) => void
   onNewChat: () => void
   isSidebarOpen: boolean
@@ -14,7 +14,7 @@ interface ChatAreaProps {
 }
 
 export default function ChatArea({
-  chat,
+  messages,
   onSendMessage,
   onNewChat,
   isSidebarOpen,
@@ -26,7 +26,7 @@ export default function ChatArea({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [chat?.messages])
+  }, [messages])
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -66,13 +66,13 @@ export default function ChatArea({
           </button>
         )}
         <h1 className="text-lg font-semibold text-white">
-          {chat?.title || 'Chat AI'}
+          FocusPlan AI
         </h1>
       </header>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto">
-        {!chat || chat.messages.length === 0 ? (
+        {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center px-4">
             <div className="text-center max-w-2xl">
               <div className="mb-6">
@@ -109,7 +109,7 @@ export default function ChatArea({
           </div>
         ) : (
           <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-            {chat.messages.map((message) => (
+            {messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
             <div ref={messagesEndRef} />

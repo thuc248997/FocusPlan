@@ -5,13 +5,12 @@ import Sidebar from './Sidebar'
 import ChatArea from './ChatArea'
 import NewTaskModal from './NewTaskModal'
 import EditTaskModal from './EditTaskModal'
-import { Chat, Message, Task } from '@/types'
+import { Message, Task } from '@/types'
 import { generateId } from '@/lib/utils'
 import { isGoogleCalendarConnected, syncTaskToCalendar } from '@/lib/googleCalendar'
 
 export default function ChatInterface() {
-  const [chats, setChats] = useState<Chat[]>([])
-  const [currentChatId, setCurrentChatId] = useState<string | null>(null)
+  const [messages, setMessages] = useState<Message[]>([])
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false)
@@ -21,26 +20,6 @@ export default function ChatInterface() {
   const [isCalendarConnected, setIsCalendarConnected] = useState(false)
 
   useEffect(() => {
-    // Load chats from localStorage
-    const savedChats = localStorage.getItem('chats')
-    if (savedChats) {
-      const parsedChats = JSON.parse(savedChats)
-      // Convert date strings back to Date objects
-      const chatsWithDates = parsedChats.map((chat: any) => ({
-        ...chat,
-        createdAt: new Date(chat.createdAt),
-        updatedAt: new Date(chat.updatedAt),
-        messages: chat.messages.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-        })),
-      }))
-      setChats(chatsWithDates)
-      if (chatsWithDates.length > 0) {
-        setCurrentChatId(chatsWithDates[0].id)
-      }
-    }
-
     // Load tasks from localStorage
     const savedTasks = localStorage.getItem('tasks')
     if (savedTasks) {
@@ -73,20 +52,11 @@ export default function ChatInterface() {
   }, [])
 
   useEffect(() => {
-    // Save chats to localStorage
-    if (chats.length > 0) {
-      localStorage.setItem('chats', JSON.stringify(chats))
-    }
-  }, [chats])
-
-  useEffect(() => {
     // Save tasks to localStorage
     if (tasks.length > 0) {
       localStorage.setItem('tasks', JSON.stringify(tasks))
     }
   }, [tasks])
-
-  const currentChat = chats.find((chat) => chat.id === currentChatId)
 
   const handleNewTask = () => {
     setIsTaskModalOpen(true)
@@ -157,33 +127,11 @@ export default function ChatInterface() {
   }
 
   const handleNewChat = () => {
-    const newChat: Chat = {
-      id: generateId(),
-      title: 'New Chat',
-      messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-    setChats([newChat, ...chats])
-    setCurrentChatId(newChat.id)
-  }
-
-  const handleSelectChat = (chatId: string) => {
-    setCurrentChatId(chatId)
-    setCurrentTaskId(null) // Deselect task when selecting chat
-  }
-
-  const handleDeleteChat = (chatId: string) => {
-    const updatedChats = chats.filter((chat) => chat.id !== chatId)
-    setChats(updatedChats)
-    if (currentChatId === chatId) {
-      setCurrentChatId(updatedChats.length > 0 ? updatedChats[0].id : null)
-    }
+    setMessages([]) // Clear current messages to start fresh
   }
 
   const handleSelectTask = (taskId: string) => {
     setCurrentTaskId(taskId)
-    setCurrentChatId(null) // Deselect chat when selecting task
   }
 
   const handleDeleteTask = (taskId: string) => {
@@ -195,11 +143,6 @@ export default function ChatInterface() {
   }
 
   const handleSendMessage = async (content: string) => {
-    if (!currentChatId) {
-      handleNewChat()
-      return
-    }
-
     const userMessage: Message = {
       id: generateId(),
       role: 'user',
@@ -207,21 +150,8 @@ export default function ChatInterface() {
       timestamp: new Date(),
     }
 
-    const updatedChats = chats.map((chat) => {
-      if (chat.id === currentChatId) {
-        const updatedMessages = [...chat.messages, userMessage]
-        const title = chat.messages.length === 0 ? content.slice(0, 50) : chat.title
-        return {
-          ...chat,
-          messages: updatedMessages,
-          title,
-          updatedAt: new Date(),
-        }
-      }
-      return chat
-    })
-
-    setChats(updatedChats)
+    const updatedMessages = [...messages, userMessage]
+    setMessages(updatedMessages)
 
     // Simulate AI response
     setTimeout(() => {
@@ -232,18 +162,7 @@ export default function ChatInterface() {
         timestamp: new Date(),
       }
 
-      const chatsWithAI = updatedChats.map((chat) => {
-        if (chat.id === currentChatId) {
-          return {
-            ...chat,
-            messages: [...chat.messages, aiMessage],
-            updatedAt: new Date(),
-          }
-        }
-        return chat
-      })
-
-      setChats(chatsWithAI)
+      setMessages([...updatedMessages, aiMessage])
     }, 1000)
   }
 
@@ -274,22 +193,17 @@ export default function ChatInterface() {
   return (
     <div className="flex h-full bg-chat-bg">
       <Sidebar
-        chats={chats}
         tasks={tasks}
-        currentChatId={currentChatId}
         currentTaskId={currentTaskId}
-        onNewChat={handleNewChat}
         onNewTask={handleNewTask}
-        onSelectChat={handleSelectChat}
         onSelectTask={handleSelectTask}
-        onDeleteChat={handleDeleteChat}
         onDeleteTask={handleDeleteTask}
         onEditTask={handleEditTask}
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
       />
       <ChatArea
-        chat={currentChat}
+        messages={messages}
         onSendMessage={handleSendMessage}
         onNewChat={handleNewChat}
         isSidebarOpen={isSidebarOpen}
