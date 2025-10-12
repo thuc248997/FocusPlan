@@ -33,7 +33,7 @@
 
 ### 💬 AI Chat Interface
 - 🤖 **AI Assistant** - Chat with an AI assistant for task help
-- 💭 **Conversation History** - Save and manage multiple chat sessions
+- 💭 **Single Chat Session** - One ongoing chat session (not persisted across reloads)
 - 🎨 **Beautiful UI** - Modern chat interface with message bubbles
 - ⚡ **Fast Responses** - Quick AI-powered responses
 
@@ -110,7 +110,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
    - **Start Time** (required)
    - **End Time** (required)
 3. ✅ Check **"Sync to Google Calendar"** to sync (if connected)
-4. Click **"Tạo Task"** to create
+4. Click **"Create Task"** to create
 
 ### Editing a Task
 
@@ -118,7 +118,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 2. Click the **✏️ Edit** icon
 3. Update task information
 4. ✅ Check **"Sync to Google Calendar"** to update calendar event
-5. Click **"Cập Nhật"** to save changes
+5. Click **"Update"** to save changes
 
 ### Connecting Google Calendar
 
@@ -134,7 +134,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 1. Type your message in the chat input
 2. Press **Enter** or click **Send**
 3. AI assistant will respond with helpful information
-4. Previous conversations are saved automatically
+4. Conversations are not persisted across page reloads; use the "New Chat" button to clear the current session
 
 ---
 

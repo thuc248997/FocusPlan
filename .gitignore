@@ -27,3 +27,7 @@ Thumbs.db
 # Design files - keep for reference
 # Uncomment below to ignore design folder
 # design/
+
+# Ignore all markdown files except README.md
+.md
+!README.md
