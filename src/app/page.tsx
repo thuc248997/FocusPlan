@@ -4,10 +4,54 @@ import { useEffect, useState } from 'react'
 import ChatInterface from '@/components/ChatInterface'
 import MonthCalendar from '@/components/MonthCalendar'
 import { storeGoogleCalendarTokens, isGoogleCalendarConnected } from '@/lib/googleCalendar'
+import { Task } from '@/types'
 
 export default function Home() {
   const [isCalendarConnected, setIsCalendarConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sharedTasks, setSharedTasks] = useState<Task[]>([])
+
+  // Load tasks from localStorage on mount
+  useEffect(() => {
+    const savedTasks = localStorage.getItem('tasks')
+    if (savedTasks) {
+      const parsedTasks = JSON.parse(savedTasks)
+      const tasksWithDates = parsedTasks.map((task: any) => ({
+        ...task,
+        createdAt: new Date(task.createdAt),
+        updatedAt: new Date(task.updatedAt),
+      }))
+      setSharedTasks(tasksWithDates)
+    }
+  }, [])
+
+  // Update shared tasks when localStorage changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const savedTasks = localStorage.getItem('tasks')
+      if (savedTasks) {
+        const parsedTasks = JSON.parse(savedTasks)
+        const tasksWithDates = parsedTasks.map((task: any) => ({
+          ...task,
+          createdAt: new Date(task.createdAt),
+          updatedAt: new Date(task.updatedAt),
+        }))
+        setSharedTasks(tasksWithDates)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    
+    // Poll localStorage for changes (for same-tab updates)
+    const interval = setInterval(() => {
+      handleStorageChange()
+    }, 1000)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      clearInterval(interval)
+    }
+  }, [])
 
   useEffect(() => {
     // Check for OAuth errors in URL
@@ -118,7 +162,7 @@ export default function Home() {
             
             {/* Calendar View - Right Half */}
             <div className="w-1/2">
-              <MonthCalendar />
+              <MonthCalendar tasks={sharedTasks} />
             </div>
           </>
         ) : (

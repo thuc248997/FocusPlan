@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react'
 import { fetchCalendarEvents, fetchCalendarEventsForMonth, updateCalendarEvent, deleteCalendarEvent } from '@/lib/googleCalendar'
+import { Task } from '@/types'
 import EditEventModal from './EditEventModal'
 
 interface CalendarEvent {
@@ -20,7 +21,11 @@ interface CalendarEvent {
   location?: string
 }
 
-export default function MonthCalendar() {
+interface MonthCalendarProps {
+  tasks?: Task[] // Local tasks from parent component
+}
+
+export default function MonthCalendar({ tasks = [] }: MonthCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
@@ -35,6 +40,15 @@ export default function MonthCalendar() {
     try {
       setLoading(true)
       
+      // Check if connected to Google Calendar
+      const token = typeof window !== 'undefined' ? localStorage.getItem('google_calendar_token') : null
+      if (!token) {
+        console.log('ℹ️ Not connected to Google Calendar. Connect to view events.')
+        setEvents([])
+        setLoading(false)
+        return
+      }
+      
       // Calculate date range for the current month
       const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
       const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59)
@@ -44,8 +58,14 @@ export default function MonthCalendar() {
         lastDay.toISOString()
       )
       setEvents(fetchedEvents)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading events:', error)
+      
+      // Only show error for non-auth issues
+      if (!error.message?.includes('expired') && !error.message?.includes('reconnect')) {
+        console.error('Failed to load calendar events. Please try again.')
+      }
+      setEvents([])
     } finally {
       setLoading(false)
     }
@@ -116,13 +136,36 @@ export default function MonthCalendar() {
     })
   }
 
-  // Get events for the current month
-  const getEventsForCurrentMonth = () => {
-    return events.filter(event => {
+  // Get local tasks for a specific day
+  const getTasksForDay = (day: number) => {
+    return tasks.filter(task => {
+      const taskDate = new Date(task.date)
+      return taskDate.getDate() === day &&
+             taskDate.getMonth() === month &&
+             taskDate.getFullYear() === year
+    })
+  }
+
+  // Get all items (events + tasks) for the current month
+  const getAllItemsForCurrentMonth = () => {
+    const monthEvents = events.filter(event => {
       const eventDate = new Date(event.start.dateTime || event.start.date || '')
       return eventDate.getMonth() === month &&
              eventDate.getFullYear() === year
     })
+    
+    const monthTasks = tasks.filter(task => {
+      const taskDate = new Date(task.date)
+      return taskDate.getMonth() === month &&
+             taskDate.getFullYear() === year
+    })
+    
+    return {
+      totalEvents: monthEvents.length,
+      totalTasks: monthTasks.length,
+      syncedTasks: monthTasks.filter(t => t.calendarEventId).length,
+      unsyncedTasks: monthTasks.filter(t => !t.calendarEventId).length,
+    }
   }
 
   // Format time from datetime string
@@ -208,6 +251,13 @@ export default function MonthCalendar() {
           <div className="flex items-center justify-center h-full">
             <div className="text-gray-400">Đang tải lịch...</div>
           </div>
+        ) : !localStorage.getItem('google_calendar_token') ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="text-gray-400 mb-2">Chưa kết nối Google Calendar</div>
+              <div className="text-sm text-gray-500">Kết nối để xem lịch từ Google Calendar</div>
+            </div>
+          </div>
         ) : (
           <div className="h-full flex flex-col">
             {/* Day names */}
@@ -226,6 +276,9 @@ export default function MonthCalendar() {
             <div className="grid grid-cols-7 gap-1 flex-1 auto-rows-fr">
               {calendarDays.map((day, index) => {
                 const dayEvents = day ? getEventsForDay(day) : []
+                const dayTasks = day ? getTasksForDay(day) : []
+                const allItems = [...dayEvents, ...dayTasks]
+                
                 return (
                   <div
                     key={index}
@@ -245,25 +298,52 @@ export default function MonthCalendar() {
                           {day}
                         </div>
                         <div className="space-y-1 overflow-y-auto max-h-20">
-                          {dayEvents.slice(0, 3).map(event => {
+                          {/* Display Google Calendar Events (Blue) */}
+                          {dayEvents.slice(0, allItems.length > 3 ? 2 : 3).map(event => {
                             const timeRange = getEventTimeRange(event)
                             return (
                               <div
                                 key={event.id}
                                 onClick={(e) => handleEventClick(event, e)}
-                                className="text-xs px-1.5 py-0.5 rounded bg-blue-600/30 text-blue-300 hover:bg-blue-600/50 cursor-pointer transition-colors"
-                                title={`${event.summary}${timeRange ? ` (${timeRange})` : ''}`}
+                                className="text-xs px-1.5 py-0.5 rounded bg-blue-600/30 text-blue-300 hover:bg-blue-600/50 cursor-pointer transition-colors border border-blue-500/30"
+                                title={`📅 Google Calendar: ${event.summary}${timeRange ? ` (${timeRange})` : ''}`}
                               >
-                                <div className="truncate font-medium">{event.summary}</div>
+                                <div className="truncate font-medium">📅 {event.summary}</div>
                                 {timeRange && (
                                   <div className="text-[10px] text-blue-200/80">{timeRange}</div>
                                 )}
                               </div>
                             )
                           })}
-                          {dayEvents.length > 3 && (
+                          
+                          {/* Display Local Tasks */}
+                          {dayTasks.slice(0, Math.max(0, 3 - dayEvents.length)).map(task => {
+                            const timeRange = `${task.startTime}-${task.endTime}`
+                            const isSynced = !!task.calendarEventId
+                            
+                            return (
+                              <div
+                                key={task.id}
+                                className={`
+                                  text-xs px-1.5 py-0.5 rounded cursor-pointer transition-colors
+                                  ${isSynced 
+                                    ? 'bg-green-600/30 text-green-300 hover:bg-green-600/50 border border-green-500/30' 
+                                    : 'bg-orange-600/30 text-orange-300 hover:bg-orange-600/50 border border-orange-500/30'
+                                  }
+                                `}
+                                title={`${isSynced ? '✅ Đã đồng bộ' : '⏳ Chưa đồng bộ'}: ${task.title} (${timeRange})`}
+                              >
+                                <div className="truncate font-medium">
+                                  {isSynced ? '✅' : '⏳'} {task.title}
+                                </div>
+                                <div className="text-[10px] opacity-80">{timeRange}</div>
+                              </div>
+                            )
+                          })}
+                          
+                          {allItems.length > 3 && (
                             <div className="text-xs text-gray-500 px-1.5">
-                              +{dayEvents.length - 3} thêm
+                              +{allItems.length - 3} thêm
                             </div>
                           )}
                         </div>
@@ -278,8 +358,25 @@ export default function MonthCalendar() {
       </div>
 
       {/* Event count */}
-      <div className="mt-3 pt-3 border-t border-gray-700 text-sm text-gray-400">
-        Tổng số sự kiện trong tháng: <span className="text-white font-medium">{getEventsForCurrentMonth().length}</span>
+      <div className="mt-3 pt-3 border-t border-gray-700 text-sm space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-gray-400">Tổng số sự kiện:</span>
+          <span className="text-white font-medium">{getAllItemsForCurrentMonth().totalEvents + getAllItemsForCurrentMonth().totalTasks}</span>
+        </div>
+        <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded bg-blue-600/50 border border-blue-500/50"></div>
+            <span className="text-gray-400">Google Calendar: {getAllItemsForCurrentMonth().totalEvents}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded bg-green-600/50 border border-green-500/50"></div>
+            <span className="text-gray-400">Đã đồng bộ: {getAllItemsForCurrentMonth().syncedTasks}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded bg-orange-600/50 border border-orange-500/50"></div>
+            <span className="text-gray-400">Chưa đồng bộ: {getAllItemsForCurrentMonth().unsyncedTasks}</span>
+          </div>
+        </div>
       </div>
 
       {/* Edit Event Modal */}

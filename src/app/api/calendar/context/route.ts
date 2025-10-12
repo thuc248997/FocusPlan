@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic'
+
 /**
  * API route to fetch calendar events for the next 2 months to provide context to AI
  * GET /api/calendar/context

@@ -59,9 +59,12 @@ export default function ChatInterface() {
         try {
           const context = await fetchCalendarContextForAI()
           setCalendarContext(context)
-          console.log('📅 Calendar context loaded:', context?.totalEvents, 'events')
+          if (context) {
+            console.log('📅 Calendar context loaded:', context?.totalEvents, 'events')
+          }
         } catch (error) {
           console.error('Failed to load calendar context:', error)
+          setCalendarContext(null)
         }
       } else {
         setCalendarContext(null)
@@ -254,15 +257,228 @@ export default function ChatInterface() {
 
       const data = await response.json()
       
-      // Replace loading message with actual AI response
-      const aiMessage: Message = {
-        id: generateId(),
-        role: 'assistant',
-        content: data.message,
-        timestamp: new Date(),
+      // Check if AI wants to perform an action
+      if (data.action) {
+        switch (data.action) {
+          case 'create_task': {
+            // Create the task automatically
+            const newTask: Task = {
+              ...data.task,
+              id: generateId(),
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }
+            setTasks([newTask, ...tasks])
+            console.log('✅ Task created from chat:', newTask)
+            
+            // Show AI message with task creation confirmation
+            const aiMessage: Message = {
+              id: generateId(),
+              role: 'assistant',
+              content: `✅ ${data.message}\n\n📋 Chi tiết:\n- Tiêu đề: ${data.task.title}\n- Ngày: ${data.task.date}\n- Thời gian: ${data.task.startTime} - ${data.task.endTime}${data.task.description ? `\n- Mô tả: ${data.task.description}` : ''}\n\n💡 Task đã được tạo và lưu vào danh sách. Bạn có thể đồng bộ lên Google Calendar từ sidebar hoặc nói "đồng bộ task [tên]".`,
+              timestamp: new Date(),
+            }
+            setMessages([...updatedMessages, aiMessage])
+            break
+          }
+          
+          case 'delete_task': {
+            // Find and delete matching tasks
+            const identifier = data.taskIdentifier.toLowerCase()
+            const matchingTasks = tasks.filter(task => 
+              task.title.toLowerCase().includes(identifier) ||
+              (task.description?.toLowerCase() || '').includes(identifier)
+            )
+            
+            if (matchingTasks.length === 0) {
+              const aiMessage: Message = {
+                id: generateId(),
+                role: 'assistant',
+                content: `❌ Không tìm thấy task nào có từ khóa "${data.taskIdentifier}".\n\nDanh sách tasks hiện tại:\n${tasks.map(t => `- ${t.title}`).join('\n') || '(Không có task nào)'}`,
+                timestamp: new Date(),
+              }
+              setMessages([...updatedMessages, aiMessage])
+            } else if (matchingTasks.length === 1) {
+              const taskToDelete = matchingTasks[0]
+              
+              // Delete from Google Calendar if synced
+              if (taskToDelete.calendarEventId && isCalendarConnected) {
+                try {
+                  await deleteCalendarEvent(taskToDelete.calendarEventId)
+                  console.log('🗑️ Calendar event deleted:', taskToDelete.calendarEventId)
+                } catch (error) {
+                  console.error('❌ Failed to delete calendar event:', error)
+                }
+              }
+              
+              // Delete from local tasks
+              const updatedTasks = tasks.filter(t => t.id !== taskToDelete.id)
+              setTasks(updatedTasks)
+              
+              const aiMessage: Message = {
+                id: generateId(),
+                role: 'assistant',
+                content: `✅ Đã xóa task: "${taskToDelete.title}"\n- Ngày: ${taskToDelete.date}\n- Thời gian: ${taskToDelete.startTime} - ${taskToDelete.endTime}${taskToDelete.calendarEventId ? '\n- ✅ Đã xóa khỏi Google Calendar' : ''}`,
+                timestamp: new Date(),
+              }
+              setMessages([...updatedMessages, aiMessage])
+            } else {
+              // Multiple matches - ask user to be more specific
+              const aiMessage: Message = {
+                id: generateId(),
+                role: 'assistant',
+                content: `⚠️ Tìm thấy ${matchingTasks.length} tasks khớp với "${data.taskIdentifier}":\n\n${matchingTasks.map((t, i) => `${i + 1}. ${t.title} (${t.date} ${t.startTime}-${t.endTime})`).join('\n')}\n\nVui lòng chỉ rõ hơn task nào bạn muốn xóa.`,
+                timestamp: new Date(),
+              }
+              setMessages([...updatedMessages, aiMessage])
+            }
+            break
+          }
+          
+          case 'sync_task': {
+            if (!isCalendarConnected) {
+              const aiMessage: Message = {
+                id: generateId(),
+                role: 'assistant',
+                content: `❌ Bạn chưa kết nối Google Calendar.\n\nVui lòng kết nối Google Calendar từ sidebar để sử dụng tính năng đồng bộ.`,
+                timestamp: new Date(),
+              }
+              setMessages([...updatedMessages, aiMessage])
+              break
+            }
+            
+            if (data.syncAll) {
+              // Sync all unsynced tasks
+              const unsyncedTasks = tasks.filter(t => !t.calendarEventId)
+              
+              if (unsyncedTasks.length === 0) {
+                const aiMessage: Message = {
+                  id: generateId(),
+                  role: 'assistant',
+                  content: `✅ Tất cả tasks đã được đồng bộ lên Google Calendar!\n\n📊 Thống kê:\n- Tổng số tasks: ${tasks.length}\n- Đã đồng bộ: ${tasks.length}\n- Chưa đồng bộ: 0`,
+                  timestamp: new Date(),
+                }
+                setMessages([...updatedMessages, aiMessage])
+              } else {
+                let syncedCount = 0
+                let failedCount = 0
+                const syncResults: string[] = []
+                
+                for (const task of unsyncedTasks) {
+                  try {
+                    const result = await syncTaskToCalendar(task)
+                    
+                    // Update task with calendar event ID
+                    const updatedTasks = tasks.map(t => 
+                      t.id === task.id 
+                        ? { ...t, calendarEventId: result.event?.id, updatedAt: new Date() }
+                        : t
+                    )
+                    setTasks(updatedTasks)
+                    
+                    syncedCount++
+                    syncResults.push(`✅ ${task.title}`)
+                  } catch (error) {
+                    failedCount++
+                    syncResults.push(`❌ ${task.title}`)
+                    console.error('Failed to sync task:', task.title, error)
+                  }
+                }
+                
+                const aiMessage: Message = {
+                  id: generateId(),
+                  role: 'assistant',
+                  content: `📤 Kết quả đồng bộ:\n\n${syncResults.join('\n')}\n\n📊 Tổng kết:\n- Thành công: ${syncedCount}\n- Thất bại: ${failedCount}\n- Tổng: ${unsyncedTasks.length}`,
+                  timestamp: new Date(),
+                }
+                setMessages([...updatedMessages, aiMessage])
+              }
+            } else {
+              // Sync specific task
+              const identifier = data.taskIdentifier.toLowerCase()
+              const matchingTasks = tasks.filter(task => 
+                (task.title.toLowerCase().includes(identifier) ||
+                task.description.toLowerCase().includes(identifier)) &&
+                !task.calendarEventId
+              )
+              
+              if (matchingTasks.length === 0) {
+                const allMatching = tasks.filter(task => 
+                  task.title.toLowerCase().includes(identifier) ||
+                  task.description.toLowerCase().includes(identifier)
+                )
+                
+                if (allMatching.length > 0 && allMatching.every(t => t.calendarEventId)) {
+                  const aiMessage: Message = {
+                    id: generateId(),
+                    role: 'assistant',
+                    content: `✅ Task "${data.taskIdentifier}" đã được đồng bộ lên Google Calendar trước đó rồi!`,
+                    timestamp: new Date(),
+                  }
+                  setMessages([...updatedMessages, aiMessage])
+                } else {
+                  const aiMessage: Message = {
+                    id: generateId(),
+                    role: 'assistant',
+                    content: `❌ Không tìm thấy task chưa đồng bộ nào có từ khóa "${data.taskIdentifier}".\n\nTasks chưa đồng bộ:\n${tasks.filter(t => !t.calendarEventId).map(t => `- ${t.title}`).join('\n') || '(Không có)'}`,
+                    timestamp: new Date(),
+                  }
+                  setMessages([...updatedMessages, aiMessage])
+                }
+              } else if (matchingTasks.length === 1) {
+                const taskToSync = matchingTasks[0]
+                
+                try {
+                  const result = await syncTaskToCalendar(taskToSync)
+                  
+                  // Update task with calendar event ID
+                  const updatedTasks = tasks.map(t => 
+                    t.id === taskToSync.id 
+                      ? { ...t, calendarEventId: result.event?.id, updatedAt: new Date() }
+                      : t
+                  )
+                  setTasks(updatedTasks)
+                  
+                  const aiMessage: Message = {
+                    id: generateId(),
+                    role: 'assistant',
+                    content: `✅ Đã đồng bộ task lên Google Calendar!\n\n📋 Task: ${taskToSync.title}\n- Ngày: ${taskToSync.date}\n- Thời gian: ${taskToSync.startTime} - ${taskToSync.endTime}\n\n🎉 Task đã chuyển sang trạng thái "Đã đồng bộ" (màu xanh lá trong calendar).`,
+                    timestamp: new Date(),
+                  }
+                  setMessages([...updatedMessages, aiMessage])
+                } catch (error: any) {
+                  const aiMessage: Message = {
+                    id: generateId(),
+                    role: 'assistant',
+                    content: `❌ Lỗi khi đồng bộ task "${taskToSync.title}":\n\n${error.message}\n\nVui lòng thử lại hoặc kết nối lại Google Calendar.`,
+                    timestamp: new Date(),
+                  }
+                  setMessages([...updatedMessages, aiMessage])
+                }
+              } else {
+                // Multiple matches
+                const aiMessage: Message = {
+                  id: generateId(),
+                  role: 'assistant',
+                  content: `⚠️ Tìm thấy ${matchingTasks.length} tasks chưa đồng bộ khớp với "${data.taskIdentifier}":\n\n${matchingTasks.map((t, i) => `${i + 1}. ${t.title} (${t.date} ${t.startTime}-${t.endTime})`).join('\n')}\n\nBạn muốn:\n- Đồng bộ một task cụ thể: "đồng bộ [tên task đầy đủ hơn]"\n- Đồng bộ tất cả: "đồng bộ tất cả tasks"`,
+                  timestamp: new Date(),
+                }
+                setMessages([...updatedMessages, aiMessage])
+              }
+            }
+            break
+          }
+        }
+      } else {
+        // Normal AI response
+        const aiMessage: Message = {
+          id: generateId(),
+          role: 'assistant',
+          content: data.message,
+          timestamp: new Date(),
+        }
+        setMessages([...updatedMessages, aiMessage])
       }
-
-      setMessages([...updatedMessages, aiMessage])
     } catch (error: any) {
       console.error('Error getting AI response:', error)
       

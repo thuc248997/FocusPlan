@@ -155,6 +155,13 @@ export async function fetchCalendarEventsForMonth(timeMin: string, timeMax: stri
     throw new Error('Not connected to Google Calendar')
   }
 
+  // Check if token is expired
+  if (isTokenExpired()) {
+    console.warn('⚠️ Google Calendar token expired. Please reconnect.')
+    disconnectGoogleCalendar()
+    throw new Error('Token expired. Please reconnect to Google Calendar.')
+  }
+
   const params = new URLSearchParams({
     timeMin,
     timeMax,
@@ -168,6 +175,11 @@ export async function fetchCalendarEventsForMonth(timeMin: string, timeMax: stri
   })
 
   if (!response.ok) {
+    if (response.status === 401) {
+      console.warn('⚠️ Google Calendar authentication expired. Please reconnect.')
+      disconnectGoogleCalendar()
+      throw new Error('Authentication expired. Please reconnect to Google Calendar.')
+    }
     throw new Error('Failed to fetch calendar events')
   }
 
@@ -360,6 +372,13 @@ export async function fetchCalendarContextForAI() {
     return null // Return null if not connected, don't throw error
   }
 
+  // Check if token is expired
+  if (isTokenExpired()) {
+    console.warn('⚠️ Google Calendar token expired. Please reconnect.')
+    disconnectGoogleCalendar()
+    return null
+  }
+
   try {
     const response = await fetch('/api/calendar/context', {
       headers: {
@@ -368,6 +387,11 @@ export async function fetchCalendarContextForAI() {
     })
 
     if (!response.ok) {
+      if (response.status === 401) {
+        console.warn('⚠️ Google Calendar authentication expired. Please reconnect.')
+        disconnectGoogleCalendar()
+        return null
+      }
       console.warn('Failed to fetch calendar context for AI')
       return null
     }

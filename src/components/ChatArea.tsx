@@ -81,17 +81,17 @@ export default function ChatArea({
                 </div>
               </div>
               <h2 className="text-3xl font-bold text-white mb-4">
-                How can I help you today?
+                Tôi có thể giúp gì cho bạn?
               </h2>
               <p className="text-gray-400 mb-8">
-                Ask me anything, and I'll do my best to provide helpful and accurate information.
+                Hỏi tôi về lịch trình, tạo task mới, hoặc bất kỳ câu hỏi nào bạn muốn.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {[
-                  'Explain quantum computing',
-                  'Write a Python function',
-                  'Plan a trip to Japan',
-                  'Help me learn Spanish',
+                  'Tạo lịch họp ngày mai lúc 10h',
+                  'Hôm nay tôi có lịch gì không?',
+                  'Đồng bộ tất cả tasks lên Calendar',
+                  'Xóa lịch họp ngày mai',
                 ].map((suggestion, index) => (
                   <button
                     key={index}
