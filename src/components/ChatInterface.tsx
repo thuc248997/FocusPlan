@@ -188,41 +188,59 @@ export default function ChatInterface() {
     const updatedMessages = [...messages, userMessage]
     setMessages(updatedMessages)
 
-    // Simulate AI response
-    setTimeout(() => {
+    // Add a temporary loading message
+    const loadingMessage: Message = {
+      id: generateId(),
+      role: 'assistant',
+      content: '🤔 Đang suy nghĩ...',
+      timestamp: new Date(),
+    }
+    setMessages([...updatedMessages, loadingMessage])
+
+    try {
+      // Call OpenAI API
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [...updatedMessages.map(msg => ({
+            role: msg.role,
+            content: msg.content,
+          }))],
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to get AI response')
+      }
+
+      const data = await response.json()
+      
+      // Replace loading message with actual AI response
       const aiMessage: Message = {
         id: generateId(),
         role: 'assistant',
-        content: getAIResponse(content),
+        content: data.message,
         timestamp: new Date(),
       }
 
       setMessages([...updatedMessages, aiMessage])
-    }, 1000)
-  }
+    } catch (error: any) {
+      console.error('Error getting AI response:', error)
+      
+      // Replace loading message with error message
+      const errorMessage: Message = {
+        id: generateId(),
+        role: 'assistant',
+        content: `❌ Lỗi: ${error.message || 'Không thể kết nối với AI. Vui lòng thử lại.'}`,
+        timestamp: new Date(),
+      }
 
-  const getAIResponse = (userMessage: string): string => {
-    // Simple mock AI responses
-    const responses = [
-      "I'm an AI assistant. I'm here to help you with your questions!",
-      "That's an interesting question. Let me think about that...",
-      "I understand what you're asking. Here's what I think...",
-      "Based on what you've told me, I would suggest...",
-      "Great question! Here's a detailed explanation...",
-    ]
-
-    // Add some context-aware responses
-    if (userMessage.toLowerCase().includes('hello') || userMessage.toLowerCase().includes('hi')) {
-      return "Hello! How can I assist you today?"
+      setMessages([...updatedMessages, errorMessage])
     }
-    if (userMessage.toLowerCase().includes('help')) {
-      return "I'm here to help! You can ask me questions about various topics, and I'll do my best to provide helpful answers."
-    }
-    if (userMessage.toLowerCase().includes('thank')) {
-      return "You're welcome! Is there anything else I can help you with?"
-    }
-
-    return responses[Math.floor(Math.random() * responses.length)]
   }
 
   return (

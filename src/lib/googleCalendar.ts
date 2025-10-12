@@ -209,6 +209,54 @@ export async function createCalendarEvent(eventData: {
 }
 
 /**
+ * Update calendar event
+ */
+export async function updateCalendarEvent(eventId: string, eventData: {
+  summary: string
+  description?: string
+  date: string
+  startTime: string
+  endTime: string
+  location?: string
+  timeZone?: string
+}) {
+  const token = getGoogleCalendarToken()
+  
+  if (!token) {
+    throw new Error('Not connected to Google Calendar')
+  }
+
+  // Convert date and time to ISO format
+  const startDateTime = `${eventData.date}T${eventData.startTime}:00`
+  const endDateTime = `${eventData.date}T${eventData.endTime}:00`
+
+  const updateData = {
+    summary: eventData.summary,
+    description: eventData.description,
+    start: startDateTime,
+    end: endDateTime,
+    location: eventData.location,
+    timeZone: eventData.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+  }
+
+  const response = await fetch(`/api/calendar/events/${eventId}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updateData),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to update calendar event')
+  }
+
+  return response.json()
+}
+
+/**
  * Delete calendar event
  */
 export async function deleteCalendarEvent(eventId: string) {

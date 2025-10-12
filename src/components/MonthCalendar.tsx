@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react'
-import { fetchCalendarEvents, fetchCalendarEventsForMonth } from '@/lib/googleCalendar'
+import { fetchCalendarEvents, fetchCalendarEventsForMonth, updateCalendarEvent, deleteCalendarEvent } from '@/lib/googleCalendar'
+import EditEventModal from './EditEventModal'
 
 interface CalendarEvent {
   id: string
@@ -23,6 +24,8 @@ export default function MonthCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
   useEffect(() => {
     loadEvents()
@@ -45,6 +48,43 @@ export default function MonthCalendar() {
       console.error('Error loading events:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Handle event click
+  const handleEventClick = (event: CalendarEvent, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSelectedEvent(event)
+    setIsEditModalOpen(true)
+  }
+
+  // Handle event update
+  const handleUpdateEvent = async (eventId: string, updatedData: { summary: string; description: string; date: string; startTime: string; endTime: string }) => {
+    try {
+      await updateCalendarEvent(eventId, updatedData)
+      
+      // Reload events to show updated data
+      await loadEvents()
+      
+      alert('Cập nhật sự kiện thành công!')
+    } catch (error: any) {
+      console.error('Error updating event:', error)
+      alert(`Lỗi khi cập nhật sự kiện: ${error.message}`)
+    }
+  }
+
+  // Handle event delete
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      await deleteCalendarEvent(eventId)
+      
+      // Reload events to show updated list
+      await loadEvents()
+      
+      alert('Xóa sự kiện thành công!')
+    } catch (error: any) {
+      console.error('Error deleting event:', error)
+      alert(`Lỗi khi xóa sự kiện: ${error.message}`)
     }
   }
 
@@ -210,7 +250,8 @@ export default function MonthCalendar() {
                             return (
                               <div
                                 key={event.id}
-                                className="text-xs px-1.5 py-0.5 rounded bg-blue-600/30 text-blue-300"
+                                onClick={(e) => handleEventClick(event, e)}
+                                className="text-xs px-1.5 py-0.5 rounded bg-blue-600/30 text-blue-300 hover:bg-blue-600/50 cursor-pointer transition-colors"
                                 title={`${event.summary}${timeRange ? ` (${timeRange})` : ''}`}
                               >
                                 <div className="truncate font-medium">{event.summary}</div>
@@ -240,6 +281,18 @@ export default function MonthCalendar() {
       <div className="mt-3 pt-3 border-t border-gray-700 text-sm text-gray-400">
         Tổng số sự kiện trong tháng: <span className="text-white font-medium">{getEventsForCurrentMonth().length}</span>
       </div>
+
+      {/* Edit Event Modal */}
+      <EditEventModal
+        isOpen={isEditModalOpen}
+        event={selectedEvent}
+        onClose={() => {
+          setIsEditModalOpen(false)
+          setSelectedEvent(null)
+        }}
+        onUpdateEvent={handleUpdateEvent}
+        onDeleteEvent={handleDeleteEvent}
+      />
     </div>
   )
 }
