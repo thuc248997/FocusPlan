@@ -349,3 +349,32 @@ export async function fetchUserCalendars() {
 
   return response.json()
 }
+
+/**
+ * Fetch calendar context for AI (next 2 months of events)
+ */
+export async function fetchCalendarContextForAI() {
+  const token = getGoogleCalendarToken()
+  
+  if (!token) {
+    return null // Return null if not connected, don't throw error
+  }
+
+  try {
+    const response = await fetch('/api/calendar/context', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+
+    if (!response.ok) {
+      console.warn('Failed to fetch calendar context for AI')
+      return null
+    }
+
+    return response.json()
+  } catch (error) {
+    console.error('Error fetching calendar context:', error)
+    return null
+  }
+}

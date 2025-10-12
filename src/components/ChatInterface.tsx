@@ -7,7 +7,7 @@ import NewTaskModal from './NewTaskModal'
 import EditTaskModal from './EditTaskModal'
 import { Message, Task } from '@/types'
 import { generateId } from '@/lib/utils'
-import { isGoogleCalendarConnected, syncTaskToCalendar, deleteCalendarEvent } from '@/lib/googleCalendar'
+import { isGoogleCalendarConnected, syncTaskToCalendar, deleteCalendarEvent, fetchCalendarContextForAI } from '@/lib/googleCalendar'
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([])
@@ -18,6 +18,7 @@ export default function ChatInterface() {
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [isCalendarConnected, setIsCalendarConnected] = useState(false)
+  const [calendarContext, setCalendarContext] = useState<any>(null)
 
   useEffect(() => {
     // Load tasks from localStorage
@@ -50,6 +51,25 @@ export default function ChatInterface() {
       window.removeEventListener('focus', checkConnection)
     }
   }, [])
+
+  useEffect(() => {
+    // Fetch calendar context when connected
+    const loadCalendarContext = async () => {
+      if (isCalendarConnected) {
+        try {
+          const context = await fetchCalendarContextForAI()
+          setCalendarContext(context)
+          console.log('📅 Calendar context loaded:', context?.totalEvents, 'events')
+        } catch (error) {
+          console.error('Failed to load calendar context:', error)
+        }
+      } else {
+        setCalendarContext(null)
+      }
+    }
+
+    loadCalendarContext()
+  }, [isCalendarConnected])
 
   useEffect(() => {
     // Save tasks to localStorage
@@ -198,7 +218,21 @@ export default function ChatInterface() {
     setMessages([...updatedMessages, loadingMessage])
 
     try {
-      // Call OpenAI API
+      // Refresh calendar context if connected (in case there are new events)
+      let currentCalendarContext = calendarContext
+      if (isCalendarConnected) {
+        try {
+          const freshContext = await fetchCalendarContextForAI()
+          if (freshContext) {
+            currentCalendarContext = freshContext
+            setCalendarContext(freshContext)
+          }
+        } catch (error) {
+          console.warn('Could not refresh calendar context:', error)
+        }
+      }
+
+      // Call OpenAI API with calendar context
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -209,6 +243,7 @@ export default function ChatInterface() {
             role: msg.role,
             content: msg.content,
           }))],
+          calendarContext: currentCalendarContext,
         }),
       })
 
