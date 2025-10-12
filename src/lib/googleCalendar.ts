@@ -209,6 +209,31 @@ export async function createCalendarEvent(eventData: {
 }
 
 /**
+ * Delete calendar event
+ */
+export async function deleteCalendarEvent(eventId: string) {
+  const token = getGoogleCalendarToken()
+  
+  if (!token) {
+    throw new Error('Not connected to Google Calendar')
+  }
+
+  const response = await fetch(`/api/calendar/events/${eventId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to delete calendar event')
+  }
+
+  return response.json()
+}
+
+/**
  * Sync task to Google Calendar
  * Converts task format to Google Calendar event format
  */

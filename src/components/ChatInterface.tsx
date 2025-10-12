@@ -7,7 +7,7 @@ import NewTaskModal from './NewTaskModal'
 import EditTaskModal from './EditTaskModal'
 import { Message, Task } from '@/types'
 import { generateId } from '@/lib/utils'
-import { isGoogleCalendarConnected, syncTaskToCalendar } from '@/lib/googleCalendar'
+import { isGoogleCalendarConnected, syncTaskToCalendar, deleteCalendarEvent } from '@/lib/googleCalendar'
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([])
@@ -63,28 +63,35 @@ export default function ChatInterface() {
   }
 
   const handleCreateTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>, syncToCalendar: boolean) => {
+    let calendarEventId: string | undefined = undefined
+    
+    // Sync to Google Calendar if requested
+    if (syncToCalendar && isCalendarConnected) {
+      try {
+        const result = await syncTaskToCalendar(taskData)
+        calendarEventId = result.event?.id
+        console.log('✅ Task synced to Google Calendar:', result)
+      } catch (error: any) {
+        console.error('❌ Failed to sync task:', error)
+        const errorMessage = error?.message || 'Không thể đồng bộ lên Google Calendar'
+        alert(`⚠️ Gặp lỗi khi đồng bộ lên Calendar:\n\n${errorMessage}`)
+        // Update connection status
+        setIsCalendarConnected(isGoogleCalendarConnected())
+      }
+    }
+    
     const newTask: Task = {
       ...taskData,
       id: generateId(),
+      calendarEventId,
       createdAt: new Date(),
       updatedAt: new Date(),
     }
     setTasks([newTask, ...tasks])
     console.log('New task created:', newTask)
     
-    // Sync to Google Calendar if requested
-    if (syncToCalendar && isCalendarConnected) {
-      try {
-        const result = await syncTaskToCalendar(taskData)
-        console.log('✅ Task synced to Google Calendar:', result)
-        alert('✅ Task đã được tạo và đồng bộ lên Google Calendar!')
-      } catch (error: any) {
-        console.error('❌ Failed to sync task:', error)
-        const errorMessage = error?.message || 'Không thể đồng bộ lên Google Calendar'
-        alert(`⚠️ Task đã được tạo nhưng gặp lỗi khi đồng bộ:\n\n${errorMessage}`)
-        // Update connection status
-        setIsCalendarConnected(isGoogleCalendarConnected())
-      }
+    if (calendarEventId) {
+      alert('✅ Task đã được tạo và đồng bộ lên Google Calendar!')
     }
   }
 
@@ -97,11 +104,37 @@ export default function ChatInterface() {
   }
 
   const handleUpdateTask = async (taskId: string, updatedTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>, syncToCalendar: boolean) => {
+    const currentTask = tasks.find(t => t.id === taskId)
+    let newCalendarEventId: string | undefined = updatedTaskData.calendarEventId
+    
+    // Sync to Google Calendar if requested
+    if (syncToCalendar && isCalendarConnected) {
+      try {
+        // Delete old calendar event if it exists
+        if (currentTask?.calendarEventId) {
+          await deleteCalendarEvent(currentTask.calendarEventId)
+          console.log('🗑️ Old calendar event deleted:', currentTask.calendarEventId)
+        }
+        
+        // Create new calendar event with updated data
+        const result = await syncTaskToCalendar(updatedTaskData)
+        newCalendarEventId = result.event?.id
+        console.log('✅ Updated task synced to Google Calendar:', result)
+      } catch (error: any) {
+        console.error('❌ Failed to sync updated task:', error)
+        const errorMessage = error?.message || 'Không thể đồng bộ lên Google Calendar'
+        alert(`⚠️ Gặp lỗi khi đồng bộ lên Calendar:\n\n${errorMessage}`)
+        // Update connection status
+        setIsCalendarConnected(isGoogleCalendarConnected())
+      }
+    }
+    
     const updatedTasks = tasks.map((task) => {
       if (task.id === taskId) {
         return {
           ...task,
           ...updatedTaskData,
+          calendarEventId: newCalendarEventId,
           updatedAt: new Date(),
         }
       }
@@ -109,20 +142,9 @@ export default function ChatInterface() {
     })
     setTasks(updatedTasks)
     console.log('Task updated:', taskId)
-
-    // Sync to Google Calendar if requested
-    if (syncToCalendar && isCalendarConnected) {
-      try {
-        const result = await syncTaskToCalendar(updatedTaskData)
-        console.log('✅ Updated task synced to Google Calendar:', result)
-        alert('✅ Task đã được cập nhật và đồng bộ lên Google Calendar!')
-      } catch (error: any) {
-        console.error('❌ Failed to sync updated task:', error)
-        const errorMessage = error?.message || 'Không thể đồng bộ lên Google Calendar'
-        alert(`⚠️ Task đã được cập nhật nhưng gặp lỗi khi đồng bộ:\n\n${errorMessage}`)
-        // Update connection status
-        setIsCalendarConnected(isGoogleCalendarConnected())
-      }
+    
+    if (syncToCalendar && newCalendarEventId) {
+      alert('✅ Task đã được cập nhật và đồng bộ lên Google Calendar!')
     }
   }
 
@@ -134,7 +156,20 @@ export default function ChatInterface() {
     setCurrentTaskId(taskId)
   }
 
-  const handleDeleteTask = (taskId: string) => {
+  const handleDeleteTask = async (taskId: string) => {
+    const taskToDelete = tasks.find(t => t.id === taskId)
+    
+    // Delete from Google Calendar if it was synced
+    if (taskToDelete?.calendarEventId && isCalendarConnected) {
+      try {
+        await deleteCalendarEvent(taskToDelete.calendarEventId)
+        console.log('🗑️ Calendar event deleted:', taskToDelete.calendarEventId)
+      } catch (error: any) {
+        console.error('❌ Failed to delete calendar event:', error)
+        // Continue with local deletion even if calendar deletion fails
+      }
+    }
+    
     const updatedTasks = tasks.filter((task) => task.id !== taskId)
     setTasks(updatedTasks)
     if (currentTaskId === taskId) {

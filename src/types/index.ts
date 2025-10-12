@@ -27,6 +27,7 @@ export interface Task {
   date: string // Format: YYYY-MM-DD
   startTime: string // Format: HH:MM
   endTime: string // Format: HH:MM
+  calendarEventId?: string // Google Calendar event ID for synced tasks
   createdAt: Date
   updatedAt: Date
 }

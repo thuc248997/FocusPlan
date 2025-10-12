@@ -85,6 +85,25 @@ export default function MonthCalendar() {
     })
   }
 
+  // Format time from datetime string
+  const formatTime = (dateTimeString?: string) => {
+    if (!dateTimeString) return ''
+    const date = new Date(dateTimeString)
+    const hours = date.getHours().toString().padStart(2, '0')
+    const minutes = date.getMinutes().toString().padStart(2, '0')
+    return `${hours}:${minutes}`
+  }
+
+  // Get time range for an event
+  const getEventTimeRange = (event: CalendarEvent) => {
+    if (!event.start.dateTime || !event.end.dateTime) {
+      return '' // All-day event
+    }
+    const startTime = formatTime(event.start.dateTime)
+    const endTime = formatTime(event.end.dateTime)
+    return `${startTime}-${endTime}`
+  }
+
   const monthNames = [
     'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
     'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
@@ -186,15 +205,21 @@ export default function MonthCalendar() {
                           {day}
                         </div>
                         <div className="space-y-1 overflow-y-auto max-h-20">
-                          {dayEvents.slice(0, 3).map(event => (
-                            <div
-                              key={event.id}
-                              className="text-xs px-1.5 py-0.5 rounded bg-blue-600/30 text-blue-300 truncate"
-                              title={event.summary}
-                            >
-                              {event.summary}
-                            </div>
-                          ))}
+                          {dayEvents.slice(0, 3).map(event => {
+                            const timeRange = getEventTimeRange(event)
+                            return (
+                              <div
+                                key={event.id}
+                                className="text-xs px-1.5 py-0.5 rounded bg-blue-600/30 text-blue-300"
+                                title={`${event.summary}${timeRange ? ` (${timeRange})` : ''}`}
+                              >
+                                <div className="truncate font-medium">{event.summary}</div>
+                                {timeRange && (
+                                  <div className="text-[10px] text-blue-200/80">{timeRange}</div>
+                                )}
+                              </div>
+                            )
+                          })}
                           {dayEvents.length > 3 && (
                             <div className="text-xs text-gray-500 px-1.5">
                               +{dayEvents.length - 3} thêm
