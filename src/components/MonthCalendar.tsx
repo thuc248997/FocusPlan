@@ -32,6 +32,11 @@ export default function MonthCalendar({ tasks = [] }: MonthCalendarProps) {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
+  // Debug: Log tasks received
+  useEffect(() => {
+    console.log('📅 MonthCalendar received tasks:', tasks.length, tasks)
+  }, [tasks])
+
   useEffect(() => {
     loadEvents()
   }, [currentDate])
@@ -138,12 +143,20 @@ export default function MonthCalendar({ tasks = [] }: MonthCalendarProps) {
 
   // Get local tasks for a specific day
   const getTasksForDay = (day: number) => {
-    return tasks.filter(task => {
+    // Only show tasks that haven't been synced to Google Calendar
+    const filteredTasks = tasks.filter(task => {
       const taskDate = new Date(task.date)
       return taskDate.getDate() === day &&
              taskDate.getMonth() === month &&
-             taskDate.getFullYear() === year
+             taskDate.getFullYear() === year &&
+             !task.calendarEventId // Only show unsynced tasks
     })
+    
+    if (filteredTasks.length > 0) {
+      console.log(`📋 Tasks for day ${day}:`, filteredTasks)
+    }
+    
+    return filteredTasks
   }
 
   // Get all items (events + tasks) for the current month
@@ -154,17 +167,24 @@ export default function MonthCalendar({ tasks = [] }: MonthCalendarProps) {
              eventDate.getFullYear() === year
     })
     
+    // Only count unsynced tasks (synced tasks are already in monthEvents)
     const monthTasks = tasks.filter(task => {
       const taskDate = new Date(task.date)
       return taskDate.getMonth() === month &&
-             taskDate.getFullYear() === year
+             taskDate.getFullYear() === year &&
+             !task.calendarEventId // Only count unsynced tasks
     })
     
     return {
       totalEvents: monthEvents.length,
       totalTasks: monthTasks.length,
-      syncedTasks: monthTasks.filter(t => t.calendarEventId).length,
-      unsyncedTasks: monthTasks.filter(t => !t.calendarEventId).length,
+      syncedTasks: tasks.filter(t => {
+        const taskDate = new Date(t.date)
+        return taskDate.getMonth() === month &&
+               taskDate.getFullYear() === year &&
+               t.calendarEventId
+      }).length,
+      unsyncedTasks: monthTasks.length,
     }
   }
 
@@ -251,15 +271,15 @@ export default function MonthCalendar({ tasks = [] }: MonthCalendarProps) {
           <div className="flex items-center justify-center h-full">
             <div className="text-gray-400">Đang tải lịch...</div>
           </div>
-        ) : !localStorage.getItem('google_calendar_token') ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <div className="text-gray-400 mb-2">Chưa kết nối Google Calendar</div>
-              <div className="text-sm text-gray-500">Kết nối để xem lịch từ Google Calendar</div>
-            </div>
-          </div>
         ) : (
           <div className="h-full flex flex-col">
+            {/* Show message if not connected */}
+            {!localStorage.getItem('google_calendar_token') && (
+              <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-3 mb-3 text-sm text-blue-300">
+                ℹ️ Kết nối Google Calendar để xem thêm sự kiện từ Google Calendar
+              </div>
+            )}
+            
             {/* Day names */}
             <div className="grid grid-cols-7 gap-1 mb-2">
               {dayNames.map(day => (
@@ -316,25 +336,18 @@ export default function MonthCalendar({ tasks = [] }: MonthCalendarProps) {
                             )
                           })}
                           
-                          {/* Display Local Tasks */}
+                          {/* Display Local Tasks (Only unsynced) */}
                           {dayTasks.slice(0, Math.max(0, 3 - dayEvents.length)).map(task => {
                             const timeRange = `${task.startTime}-${task.endTime}`
-                            const isSynced = !!task.calendarEventId
                             
                             return (
                               <div
                                 key={task.id}
-                                className={`
-                                  text-xs px-1.5 py-0.5 rounded cursor-pointer transition-colors
-                                  ${isSynced 
-                                    ? 'bg-green-600/30 text-green-300 hover:bg-green-600/50 border border-green-500/30' 
-                                    : 'bg-orange-600/30 text-orange-300 hover:bg-orange-600/50 border border-orange-500/30'
-                                  }
-                                `}
-                                title={`${isSynced ? '✅ Đã đồng bộ' : '⏳ Chưa đồng bộ'}: ${task.title} (${timeRange})`}
+                                className="text-xs px-1.5 py-0.5 rounded cursor-pointer transition-colors bg-orange-600/30 text-orange-300 hover:bg-orange-600/50 border border-orange-500/30"
+                                title={`⏳ Chưa đồng bộ: ${task.title} (${timeRange})`}
                               >
                                 <div className="truncate font-medium">
-                                  {isSynced ? '✅' : '⏳'} {task.title}
+                                  ⏳ {task.title}
                                 </div>
                                 <div className="text-[10px] opacity-80">{timeRange}</div>
                               </div>
@@ -369,14 +382,15 @@ export default function MonthCalendar({ tasks = [] }: MonthCalendarProps) {
             <span className="text-gray-400">Google Calendar: {getAllItemsForCurrentMonth().totalEvents}</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-green-600/50 border border-green-500/50"></div>
-            <span className="text-gray-400">Đã đồng bộ: {getAllItemsForCurrentMonth().syncedTasks}</span>
-          </div>
-          <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded bg-orange-600/50 border border-orange-500/50"></div>
             <span className="text-gray-400">Chưa đồng bộ: {getAllItemsForCurrentMonth().unsyncedTasks}</span>
           </div>
         </div>
+        {getAllItemsForCurrentMonth().syncedTasks > 0 && (
+          <div className="text-xs text-gray-500 italic">
+            ℹ️ {getAllItemsForCurrentMonth().syncedTasks} tasks đã được đồng bộ và hiển thị trên Google Calendar
+          </div>
+        )}
       </div>
 
       {/* Edit Event Modal */}

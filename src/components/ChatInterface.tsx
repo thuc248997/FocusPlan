@@ -7,7 +7,7 @@ import NewTaskModal from './NewTaskModal'
 import EditTaskModal from './EditTaskModal'
 import { Message, Task } from '@/types'
 import { generateId } from '@/lib/utils'
-import { isGoogleCalendarConnected, syncTaskToCalendar, deleteCalendarEvent, fetchCalendarContextForAI } from '@/lib/googleCalendar'
+import { isGoogleCalendarConnected, syncTaskToCalendar, deleteCalendarEvent, fetchCalendarContextForAI, checkScheduleConflicts } from '@/lib/googleCalendar'
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([])
@@ -110,11 +110,21 @@ export default function ChatInterface() {
       createdAt: new Date(),
       updatedAt: new Date(),
     }
-    setTasks([newTask, ...tasks])
-    console.log('New task created:', newTask)
+    const updatedTasks = [newTask, ...tasks]
+    setTasks(updatedTasks)
+    
+    // Force save to localStorage to trigger immediate update
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks))
+    
+    console.log('✅ New task created:', newTask)
+    console.log('📋 Total tasks:', updatedTasks.length)
     
     if (calendarEventId) {
       alert('✅ Task đã được tạo và đồng bộ lên Google Calendar!')
+    } else if (syncToCalendar) {
+      alert('⚠️ Task đã được tạo nhưng chưa đồng bộ được lên Google Calendar')
+    } else {
+      alert('✅ Task đã được tạo! (Chưa đồng bộ lên Google Calendar)')
     }
   }
 
@@ -164,7 +174,11 @@ export default function ChatInterface() {
       return task
     })
     setTasks(updatedTasks)
-    console.log('Task updated:', taskId)
+    
+    // Force save to localStorage to trigger immediate update
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks))
+    
+    console.log('✅ Task updated:', taskId)
     
     if (syncToCalendar && newCalendarEventId) {
       alert('✅ Task đã được cập nhật và đồng bộ lên Google Calendar!')
@@ -185,19 +199,31 @@ export default function ChatInterface() {
     // Delete from Google Calendar if it was synced
     if (taskToDelete?.calendarEventId && isCalendarConnected) {
       try {
-        await deleteCalendarEvent(taskToDelete.calendarEventId)
-        console.log('🗑️ Calendar event deleted:', taskToDelete.calendarEventId)
+        const result = await deleteCalendarEvent(taskToDelete.calendarEventId)
+        // Don't log if already deleted (result.message will contain "already deleted")
+        if (!result?.message?.includes('already deleted')) {
+          console.log('🗑️ Calendar event deleted:', taskToDelete.calendarEventId)
+        }
       } catch (error: any) {
-        console.error('❌ Failed to delete calendar event:', error)
-        // Continue with local deletion even if calendar deletion fails
+        // Only log error if it's not "already deleted" case
+        if (!error.message?.includes('already deleted')) {
+          console.error('❌ Failed to delete calendar event:', error)
+        }
+        // Continue with local deletion regardless
       }
     }
     
     const updatedTasks = tasks.filter((task) => task.id !== taskId)
     setTasks(updatedTasks)
+    
+    // Force save to localStorage to trigger immediate update
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks))
+    
     if (currentTaskId === taskId) {
       setCurrentTaskId(updatedTasks.length > 0 ? updatedTasks[0].id : null)
     }
+    
+    console.log('✅ Task deleted:', taskId)
   }
 
   const handleSendMessage = async (content: string) => {
@@ -261,6 +287,21 @@ export default function ChatInterface() {
       if (data.action) {
         switch (data.action) {
           case 'create_task': {
+            // Check for schedule conflicts before creating task
+            const conflictCheck = await checkScheduleConflicts(
+              data.task.date,
+              data.task.startTime,
+              data.task.endTime,
+              tasks
+            )
+            
+            let conflictWarning = ''
+            if (conflictCheck.hasConflicts) {
+              conflictWarning = `\n\n⚠️ CẢNH BÁO TRÙNG LỊCH:\n${conflictCheck.conflicts.map((c: any) => 
+                `- ${c.title} (${c.startTime}-${c.endTime}) [${c.source === 'calendar' ? 'Google Calendar' : 'Task'}]`
+              ).join('\n')}\n\n⚠️ Lịch này bị trùng với ${conflictCheck.conflicts.length} sự kiện khác. Bạn có thể chỉnh sửa thời gian hoặc xác nhận tạo task này.`
+            }
+            
             // Create the task automatically
             const newTask: Task = {
               ...data.task,
@@ -268,14 +309,20 @@ export default function ChatInterface() {
               createdAt: new Date(),
               updatedAt: new Date(),
             }
-            setTasks([newTask, ...tasks])
+            const updatedTasksList = [newTask, ...tasks]
+            setTasks(updatedTasksList)
+            
+            // Force save to localStorage to trigger immediate update
+            localStorage.setItem('tasks', JSON.stringify(updatedTasksList))
+            
             console.log('✅ Task created from chat:', newTask)
+            console.log('📋 Total tasks:', updatedTasksList.length)
             
             // Show AI message with task creation confirmation
             const aiMessage: Message = {
               id: generateId(),
               role: 'assistant',
-              content: `✅ ${data.message}\n\n📋 Chi tiết:\n- Tiêu đề: ${data.task.title}\n- Ngày: ${data.task.date}\n- Thời gian: ${data.task.startTime} - ${data.task.endTime}${data.task.description ? `\n- Mô tả: ${data.task.description}` : ''}\n\n💡 Task đã được tạo và lưu vào danh sách. Bạn có thể đồng bộ lên Google Calendar từ sidebar hoặc nói "đồng bộ task [tên]".`,
+              content: `✅ ${data.message}\n\n📋 Chi tiết:\n- Tiêu đề: ${data.task.title}\n- Ngày: ${data.task.date}\n- Thời gian: ${data.task.startTime} - ${data.task.endTime}${data.task.description ? `\n- Mô tả: ${data.task.description}` : ''}${conflictWarning}\n\n💡 Task đã được tạo và lưu vào danh sách. Bạn có thể đồng bộ lên Google Calendar từ sidebar hoặc nói "đồng bộ task [tên]".`,
               timestamp: new Date(),
             }
             setMessages([...updatedMessages, aiMessage])
@@ -314,6 +361,9 @@ export default function ChatInterface() {
               // Delete from local tasks
               const updatedTasks = tasks.filter(t => t.id !== taskToDelete.id)
               setTasks(updatedTasks)
+              
+              // Force save to localStorage to trigger immediate update
+              localStorage.setItem('tasks', JSON.stringify(updatedTasks))
               
               const aiMessage: Message = {
                 id: generateId(),
@@ -375,6 +425,9 @@ export default function ChatInterface() {
                         : t
                     )
                     setTasks(updatedTasks)
+                    
+                    // Force save to localStorage to trigger immediate update
+                    localStorage.setItem('tasks', JSON.stringify(updatedTasks))
                     
                     syncedCount++
                     syncResults.push(`✅ ${task.title}`)
@@ -438,6 +491,9 @@ export default function ChatInterface() {
                       : t
                   )
                   setTasks(updatedTasks)
+                  
+                  // Force save to localStorage to trigger immediate update
+                  localStorage.setItem('tasks', JSON.stringify(updatedTasks))
                   
                   const aiMessage: Message = {
                     id: generateId(),

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Upload } from 'lucide-react'
 import { Task } from '@/types'
 
@@ -19,6 +19,13 @@ export default function NewTaskModal({ isOpen, onClose, onCreateTask, isCalendar
   const [endTime, setEndTime] = useState('')
   const [syncToCalendar, setSyncToCalendar] = useState(false)
 
+  // Auto-check sync checkbox when calendar is connected
+  useEffect(() => {
+    if (isCalendarConnected && isOpen) {
+      setSyncToCalendar(true)
+    }
+  }, [isCalendarConnected, isOpen])
+
   if (!isOpen) return null
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -31,7 +38,7 @@ export default function NewTaskModal({ isOpen, onClose, onCreateTask, isCalendar
 
     onCreateTask({
       title: title.trim(),
-      description: description.trim(),
+      description: description?.trim() || '',
       date,
       startTime,
       endTime,
@@ -159,10 +166,16 @@ export default function NewTaskModal({ isOpen, onClose, onCreateTask, isCalendar
                 onChange={(e) => setSyncToCalendar(e.target.checked)}
                 className="w-4 h-4 text-blue-600 bg-gray-900 border-gray-700 rounded focus:ring-blue-500 focus:ring-2"
               />
-              <label htmlFor="syncToCalendar" className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+              <label htmlFor="syncToCalendar" className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer flex-1">
                 <Upload size={16} className="text-blue-400" />
-                <span>Đồng bộ lên Google Calendar</span>
+                <span>Đồng bộ lên Google Calendar ngay</span>
               </label>
+            </div>
+          )}
+          
+          {!isCalendarConnected && (
+            <div className="p-3 bg-orange-900/20 border border-orange-700/50 rounded-lg text-sm text-orange-300">
+              ℹ️ Kết nối Google Calendar để đồng bộ task tự động
             </div>
           )}
 

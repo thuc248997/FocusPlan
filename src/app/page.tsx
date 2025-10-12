@@ -4,12 +4,18 @@ import { useEffect, useState } from 'react'
 import ChatInterface from '@/components/ChatInterface'
 import MonthCalendar from '@/components/MonthCalendar'
 import { storeGoogleCalendarTokens, isGoogleCalendarConnected } from '@/lib/googleCalendar'
+import { suppressBrowserExtensionErrors } from '@/lib/suppressErrors'
 import { Task } from '@/types'
 
 export default function Home() {
   const [isCalendarConnected, setIsCalendarConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sharedTasks, setSharedTasks] = useState<Task[]>([])
+
+  // Suppress browser extension errors
+  useEffect(() => {
+    suppressBrowserExtensionErrors()
+  }, [])
 
   // Load tasks from localStorage on mount
   useEffect(() => {
@@ -37,15 +43,18 @@ export default function Home() {
           updatedAt: new Date(task.updatedAt),
         }))
         setSharedTasks(tasksWithDates)
+        console.log('📋 Tasks updated:', tasksWithDates.length, 'tasks')
+      } else {
+        setSharedTasks([])
       }
     }
 
     window.addEventListener('storage', handleStorageChange)
     
-    // Poll localStorage for changes (for same-tab updates)
+    // Poll localStorage for changes more frequently (for same-tab updates)
     const interval = setInterval(() => {
       handleStorageChange()
-    }, 1000)
+    }, 500) // Reduced from 1000ms to 500ms for faster updates
 
     return () => {
       window.removeEventListener('storage', handleStorageChange)
@@ -153,24 +162,15 @@ export default function Home() {
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {isCalendarConnected ? (
-          <>
-            {/* Chat View - Left Half */}
-            <div className="w-1/2 border-r border-gray-700">
-              <ChatInterface />
-            </div>
-            
-            {/* Calendar View - Right Half */}
-            <div className="w-1/2">
-              <MonthCalendar tasks={sharedTasks} />
-            </div>
-          </>
-        ) : (
-          /* Full Chat View when not connected */
-          <div className="w-full">
-            <ChatInterface />
-          </div>
-        )}
+        {/* Chat View - Left Half or Full Width */}
+        <div className={isCalendarConnected ? "w-1/2 border-r border-gray-700" : "w-2/3 border-r border-gray-700"}>
+          <ChatInterface />
+        </div>
+        
+        {/* Calendar View - Always show (to display local tasks) */}
+        <div className={isCalendarConnected ? "w-1/2" : "w-1/3"}>
+          <MonthCalendar tasks={sharedTasks} />
+        </div>
       </div>
     </div>
   )

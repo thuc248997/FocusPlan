@@ -285,6 +285,12 @@ export async function deleteCalendarEvent(eventId: string) {
     },
   })
 
+  // If event is already deleted (410 Gone), consider it success
+  if (response.status === 410) {
+    console.log('📌 Calendar event already deleted:', eventId)
+    return { success: true, message: 'Event already deleted' }
+  }
+
   if (!response.ok) {
     const error = await response.json()
     throw new Error(error.error || 'Failed to delete calendar event')
@@ -400,5 +406,112 @@ export async function fetchCalendarContextForAI() {
   } catch (error) {
     console.error('Error fetching calendar context:', error)
     return null
+  }
+}
+
+/**
+ * Check for schedule conflicts
+ * Returns conflicting events/tasks if found
+ */
+export async function checkScheduleConflicts(
+  date: string,
+  startTime: string,
+  endTime: string,
+  existingTasks: Array<{ date: string; startTime: string; endTime: string; title: string }>
+): Promise<{
+  hasConflicts: boolean
+  conflicts: Array<{
+    title: string
+    date: string
+    startTime: string
+    endTime: string
+    source: 'task' | 'calendar'
+  }>
+}> {
+  const conflicts: Array<{
+    title: string
+    date: string
+    startTime: string
+    endTime: string
+    source: 'task' | 'calendar'
+  }> = []
+
+  // Helper function to check time overlap
+  const isTimeOverlap = (start1: string, end1: string, start2: string, end2: string): boolean => {
+    const [h1, m1] = start1.split(':').map(Number)
+    const [h2, m2] = end1.split(':').map(Number)
+    const [h3, m3] = start2.split(':').map(Number)
+    const [h4, m4] = end2.split(':').map(Number)
+    
+    const start1Minutes = h1 * 60 + m1
+    const end1Minutes = h2 * 60 + m2
+    const start2Minutes = h3 * 60 + m3
+    const end2Minutes = h4 * 60 + m4
+    
+    // Check if time ranges overlap
+    return start1Minutes < end2Minutes && start2Minutes < end1Minutes
+  }
+
+  // Check against existing tasks
+  for (const task of existingTasks) {
+    if (task.date === date && isTimeOverlap(startTime, endTime, task.startTime, task.endTime)) {
+      conflicts.push({
+        title: task.title,
+        date: task.date,
+        startTime: task.startTime,
+        endTime: task.endTime,
+        source: 'task',
+      })
+    }
+  }
+
+  // Check against Google Calendar events
+  const token = getGoogleCalendarToken()
+  if (token && !isTokenExpired()) {
+    try {
+      // Fetch events for the specific date
+      const dayStart = new Date(`${date}T00:00:00`)
+      const dayEnd = new Date(`${date}T23:59:59`)
+      
+      const { events } = await fetchCalendarEventsForMonth(
+        dayStart.toISOString(),
+        dayEnd.toISOString(),
+        100
+      )
+      
+      if (events && events.length > 0) {
+        for (const event of events) {
+          // Extract time from event
+          const eventStart = event.start?.dateTime || event.start?.date
+          const eventEnd = event.end?.dateTime || event.end?.date
+          
+          if (eventStart && eventEnd && !event.start?.date) { // Skip all-day events
+            const eventDate = eventStart.split('T')[0]
+            if (eventDate === date) {
+              const eventStartTime = eventStart.split('T')[1].substring(0, 5) // HH:MM
+              const eventEndTime = eventEnd.split('T')[1].substring(0, 5) // HH:MM
+              
+              if (isTimeOverlap(startTime, endTime, eventStartTime, eventEndTime)) {
+                conflicts.push({
+                  title: event.summary || 'Không có tiêu đề',
+                  date: eventDate,
+                  startTime: eventStartTime,
+                  endTime: eventEndTime,
+                  source: 'calendar',
+                })
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking calendar conflicts:', error)
+      // Continue even if calendar check fails
+    }
+  }
+
+  return {
+    hasConflicts: conflicts.length > 0,
+    conflicts,
   }
 }

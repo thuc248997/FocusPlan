@@ -24,12 +24,16 @@ export default function EditTaskModal({ isOpen, task, onClose, onUpdateTask, isC
   useEffect(() => {
     if (task) {
       setTitle(task.title)
-      setDescription(task.description)
+      setDescription(task.description || '')
       setDate(task.date)
       setStartTime(task.startTime)
       setEndTime(task.endTime)
+      // Auto-check sync if calendar is connected and task is not yet synced
+      if (isCalendarConnected && !task.calendarEventId) {
+        setSyncToCalendar(true)
+      }
     }
-  }, [task])
+  }, [task, isCalendarConnected])
 
   if (!isOpen || !task) return null
 
@@ -43,7 +47,7 @@ export default function EditTaskModal({ isOpen, task, onClose, onUpdateTask, isC
 
     onUpdateTask(task.id, {
       title: title.trim(),
-      description: description.trim(),
+      description: description?.trim() || '',
       date,
       startTime,
       endTime,
@@ -57,7 +61,7 @@ export default function EditTaskModal({ isOpen, task, onClose, onUpdateTask, isC
     // Reset to original task data
     if (task) {
       setTitle(task.title)
-      setDescription(task.description)
+      setDescription(task.description || '')
       setDate(task.date)
       setStartTime(task.startTime)
       setEndTime(task.endTime)
@@ -168,10 +172,22 @@ export default function EditTaskModal({ isOpen, task, onClose, onUpdateTask, isC
                 onChange={(e) => setSyncToCalendar(e.target.checked)}
                 className="w-4 h-4 text-blue-600 bg-gray-900 border-gray-700 rounded focus:ring-blue-500 focus:ring-2"
               />
-              <label htmlFor="edit-syncToCalendar" className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+              <label htmlFor="edit-syncToCalendar" className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer flex-1">
                 <Upload size={16} className="text-blue-400" />
-                <span>Đồng bộ lên Google Calendar</span>
+                <span>{task?.calendarEventId ? 'Cập nhật lên Google Calendar' : 'Đồng bộ lên Google Calendar'}</span>
               </label>
+            </div>
+          )}
+          
+          {!isCalendarConnected && (
+            <div className="p-3 bg-orange-900/20 border border-orange-700/50 rounded-lg text-sm text-orange-300">
+              ℹ️ Kết nối Google Calendar để đồng bộ task
+            </div>
+          )}
+          
+          {task?.calendarEventId && (
+            <div className="p-3 bg-green-900/20 border border-green-700/50 rounded-lg text-sm text-green-300">
+              ✅ Task này đã được đồng bộ với Google Calendar
             </div>
           )}
 
